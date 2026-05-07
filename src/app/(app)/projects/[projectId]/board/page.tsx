@@ -36,7 +36,7 @@ export default async function BoardPage({
 
   return (
     <KanbanBoard
-      project={project}
+      project={project as any}
       members={project.members.map((m) => m.user)}
       initialTaskId={searchParams.task}
     />

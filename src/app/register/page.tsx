@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const inviteToken = searchParams?.get("invite") ?? null;
@@ -56,58 +56,66 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
-      <form
-        onSubmit={onSubmit}
-        className="w-full max-w-sm rounded-lg border bg-white p-6 shadow-sm space-y-4"
-      >
-        <h1 className="text-2xl font-semibold">Create account</h1>
-        {projectName && (
-          <p className="text-sm text-muted-foreground rounded-md bg-indigo-50 border border-indigo-100 p-3">
-            You're joining <strong>{projectName}</strong> after you sign up.
+    <form
+      onSubmit={onSubmit}
+      className="w-full max-w-sm rounded-lg border bg-card p-6 shadow-sm space-y-4"
+    >
+      <h1 className="text-2xl font-semibold">Create account</h1>
+      {projectName && (
+        <p className="text-sm text-muted-foreground rounded-md bg-accent/30 border border-accent p-3">
+          You're joining <strong>{projectName}</strong> after you sign up.
+        </p>
+      )}
+      <div className="space-y-2">
+        <Label htmlFor="name">Name</Label>
+        <Input id="name" required value={name} onChange={(e) => setName(e.target.value)} />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="email">Email</Label>
+        <Input
+          id="email"
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          disabled={!!inviteEmail}
+        />
+        {inviteEmail && (
+          <p className="text-xs text-muted-foreground">
+            Email is fixed by your invitation.
           </p>
         )}
-        <div className="space-y-2">
-          <Label htmlFor="name">Name</Label>
-          <Input id="name" required value={name} onChange={(e) => setName(e.target.value)} />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={!!inviteEmail}
-          />
-          {inviteEmail && (
-            <p className="text-xs text-muted-foreground">
-              Email is fixed by your invitation.
-            </p>
-          )}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
-          <Input
-            id="password"
-            type="password"
-            required
-            minLength={8}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </div>
-        <Button type="submit" disabled={loading} className="w-full">
-          {loading ? "Creating..." : "Create account"}
-        </Button>
-        <div className="text-center text-sm text-muted-foreground">
-          Already have one?{" "}
-          <Link href="/login" className="text-primary underline">
-            Sign in
-          </Link>
-        </div>
-      </form>
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="password">Password</Label>
+        <Input
+          id="password"
+          type="password"
+          required
+          minLength={8}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+      </div>
+      <Button type="submit" disabled={loading} className="w-full">
+        {loading ? "Creating..." : "Create account"}
+      </Button>
+      <div className="text-center text-sm text-muted-foreground">
+        Already have one?{" "}
+        <Link href="/login" className="text-primary underline">
+          Sign in
+        </Link>
+      </div>
+    </form>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-background p-4">
+      <Suspense fallback={<div className="text-sm text-muted-foreground">Loading…</div>}>
+        <RegisterForm />
+      </Suspense>
     </main>
   );
 }
