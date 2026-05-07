@@ -1,0 +1,257 @@
+// Prisma schema for the Team Tasks app.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// SQLite doesn't support enums; we keep the values as strings and
+// validate at the API layer with Zod. Allowed values:
+//   Role:           ADMIN | MEMBER
+//   Priority:       LOW | MEDIUM | HIGH | URGENT
+//   TaskStatus:     TODO | IN_PROGRESS | IN_REVIEW | ON_HOLD | DONE
+//   SprintStatus:   PLANNED | ACTIVE | COMPLETED
+//   MilestoneStatus: UPCOMING | REACHED | MISSED
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  image         String?
+  passwordHash  String?
+  role          String    @default("MEMBER")
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+
+  accounts        Account[]
+  sessions        Session[]
+  memberships     ProjectMember[]
+  assignedTasks   Task[]            @relation("TaskAssignee")
+  createdTasks    Task[]            @relation("TaskCreator")
+  comments        Comment[]
+  whiteboards     Whiteboard[]
+  notes           Note[]
+  sentInvitations Invitation[]     @relation("InvitationInviter")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  key         String   @unique
+  description String?
+  color       String   @default("#6366f1")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members     ProjectMember[]
+  tasks       Task[]
+  whiteboard  Whiteboard?
+  sprints     Sprint[]
+  milestones  Milestone[]
+  notes       Note[]
+  invitations Invitation[]
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  role      String   @default("MEMBER")
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+}
+
+model Task {
+  id          String     @id @default(cuid())
+  projectId   String
+  title       String
+  description String?
+  status      String     @default("TODO")
+  priority    String     @default("MEDIUM")
+  startDate   DateTime?
+  endDate     DateTime?
+  position    Int        @default(0)
+  assigneeId  String?
+  creatorId   String
+  sprintId    String?
+  milestoneId String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Notification bookkeeping (reminders trigger off endDate)
+  endReminderSentAt DateTime?
+
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  assignee  User?      @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  creator   User       @relation("TaskCreator", fields: [creatorId], references: [id])
+  sprint    Sprint?    @relation(fields: [sprintId], references: [id], onDelete: SetNull)
+  milestone Milestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  subtasks  Subtask[]
+  comments  Comment[]
+
+  @@index([projectId, status])
+  @@index([assigneeId])
+  @@index([endDate])
+  @@index([sprintId])
+  @@index([milestoneId])
+}
+
+model Sprint {
+  id        String   @id @default(cuid())
+  projectId String
+  name      String
+  goal      String?
+  startDate DateTime
+  endDate   DateTime
+  status    String   @default("PLANNED")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project    Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks      Task[]
+  milestones Milestone[]
+
+  @@index([projectId, status])
+}
+
+model Milestone {
+  id          String    @id @default(cuid())
+  projectId   String
+  sprintId    String?
+  title       String
+  description String?
+  dueDate     DateTime?
+  status      String    @default("UPCOMING")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sprint  Sprint? @relation(fields: [sprintId], references: [id], onDelete: SetNull)
+  tasks   Task[]
+
+  @@index([projectId, status])
+  @@index([sprintId])
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  projectId String
+  authorId  String?
+  title     String
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  author  User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+}
+
+model Subtask {
+  id        String   @id @default(cuid())
+  taskId    String
+  title     String
+  done      Boolean  @default(false)
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  taskId    String
+  authorId  String?
+  authorEmail String?
+  body      String
+  source    String   @default("web") // web | email
+  createdAt DateTime @default(now())
+
+  task   Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([taskId])
+}
+
+model Whiteboard {
+  id        String   @id @default(cuid())
+  projectId String   @unique
+  snapshot  String?
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [updatedBy], references: [id], onDelete: SetNull)
+}
+
+model ProcessedEmail {
+  id          String   @id @default(cuid())
+  messageId   String   @unique
+  taskId      String?
+  receivedAt  DateTime @default(now())
+}
+
+model Invitation {
+  id          String    @id @default(cuid())
+  email       String
+  projectId   String
+  role        String    @default("MEMBER")
+  token       String    @unique
+  invitedById String
+  status      String    @default("PENDING")
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  acceptedAt  DateTime?
+
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  invitedBy User    @relation("InvitationInviter", fields: [invitedById], references: [id])
+
+  @@index([projectId])
+  @@index([email])
+  @@index([status])
+}
