@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-
+//
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -8,7 +8,9 @@ export function cn(...inputs: ClassValue[]) {
 export function initials(name?: string | null, email?: string | null) {
   const src = name || email || "";
   const parts = src.split(/[\s@.]+/).filter(Boolean);
-  return (parts[0]?.[0] ?? "?").toUpperCase() + (parts[1]?.[0] ?? "").toUpperCase();
+  return (
+    (parts[0]?.[0] ?? "?").toUpperCase() + (parts[1]?.[0] ?? "").toUpperCase()
+  );
 }
 
 export function formatDate(d: Date | string | null | undefined) {
@@ -35,5 +37,8 @@ export function priorityColor(p: string) {
 }
 
 export function statusLabel(s: string) {
-  return s.replace("_", " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+  return s
+    .replace("_", " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }
