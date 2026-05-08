@@ -29,10 +29,10 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
+    <main className="flex min-h-screen items-center justify-center bg-background p-4">
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-sm rounded-lg border bg-white p-6 shadow-sm space-y-4"
+        className="w-full max-w-sm rounded-lg border bg-card p-6 shadow-sm space-y-4"
       >
         <div>
           <h1 className="text-2xl font-semibold">Team Tasks</h1>
@@ -55,9 +55,6 @@ export default function LoginPage() {
             Register
           </Link>
         </div>
-        <p className="text-center text-xs text-muted-foreground">
-          Try seeded user: <code>alice@example.com</code> / <code>password123</code>
-        </p>
       </form>
     </main>
   );

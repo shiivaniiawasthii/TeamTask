@@ -78,7 +78,7 @@ export default async function DashboardPage() {
                   <li key={t.id} className="py-2">
                     <Link
                       href={`/projects/${t.project.id}/board?task=${t.id}`}
-                      className="flex items-start gap-3 hover:bg-slate-50 p-2 rounded-md"
+                      className="flex items-start gap-3 hover:bg-muted/40 p-2 rounded-md"
                     >
                       <span
                         className="mt-1 h-2 w-2 rounded-full"
@@ -93,7 +93,7 @@ export default async function DashboardPage() {
                           <span>·</span>
                           <Badge className={priorityColor(t.priority)}>{t.priority}</Badge>
                           {t.endDate && (
-                            <span className={cn(od && "text-red-600 font-medium")}>
+                            <span className={cn(od && "text-destructive font-medium")}>
                               · {formatDate(t.endDate)}
                             </span>
                           )}
@@ -119,7 +119,7 @@ export default async function DashboardPage() {
                 <li key={p.id} className="py-2">
                   <Link
                     href={`/projects/${p.id}/board`}
-                    className="flex items-center gap-3 hover:bg-slate-50 p-2 rounded-md"
+                    className="flex items-center gap-3 hover:bg-muted/40 p-2 rounded-md"
                   >
                     <span
                       className="h-2.5 w-2.5 rounded-full"
@@ -158,7 +158,7 @@ function Stat({
       <div
         className={cn(
           "mt-1 text-3xl font-semibold",
-          highlight && "text-red-600",
+          highlight && "text-destructive",
         )}
       >
         {value}

@@ -115,7 +115,7 @@ export function TaskDetailDrawer({
         particleCount: 120,
         spread: 80,
         origin: { y: 0.7 },
-        colors: ["#E35336", "#F4A460", "#A0522D", "#F5F5DC"],
+        colors: ["#7c2d77", "#a8418a", "#c769b8", "#e9d3e3", "#ffd1eb"],
       });
       toast.success("🎉 Task complete — nice work!");
     }

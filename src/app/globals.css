@@ -4,50 +4,48 @@
 
 @layer base {
   :root {
-    /* Light theme — burnt sienna palette
-       #E35336 burnt sienna, #F5F5DC beige, #F4A460 sandy brown, #A0522D sienna */
-    --background: 51 60% 96%;          /* very pale beige */
-    --foreground: 19 56% 15%;          /* deep sienna */
-    --card: 0 0% 100%;
-    --card-foreground: 19 56% 15%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 19 56% 15%;
-    --primary: 11 75% 55%;             /* burnt sienna */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 60 35% 92%;           /* warm cream */
-    --secondary-foreground: 19 56% 25%;
-    --muted: 51 40% 90%;
-    --muted-foreground: 19 20% 40%;
-    --accent: 28 87% 67%;              /* sandy brown */
-    --accent-foreground: 19 56% 15%;
-    --destructive: 0 75% 50%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 51 25% 84%;
-    --input: 51 25% 84%;
-    --ring: 11 75% 55%;
+    --background: oklch(1.00 0 0);
+    --foreground: oklch(0.23 0 0);
+    --card: oklch(0.98 0 0);
+    --card-foreground: oklch(0.23 0 0);
+    --popover: oklch(0.98 0 0);
+    --popover-foreground: oklch(0.23 0 0);
+    --primary: oklch(0.37 0.14 323.40);
+    --primary-foreground: oklch(1.00 0 0);
+    --secondary: oklch(0.96 0.01 311.36);
+    --secondary-foreground: oklch(0.31 0.11 327.10);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.49 0 0);
+    --accent: oklch(0.88 0.02 323.34);
+    --accent-foreground: oklch(0.31 0.11 327.10);
+    --destructive: oklch(0.59 0.22 11.39);
+    --destructive-foreground: oklch(1.00 0 0);
+    --border: oklch(0.91 0 0);
+    --input: oklch(0.91 0 0);
+    --ring: oklch(0.37 0.14 323.40);
     --radius: 0.5rem;
   }
 
   .dark {
-    --background: 19 30% 8%;           /* near-black warm */
-    --foreground: 60 20% 95%;
-    --card: 19 30% 12%;
-    --card-foreground: 60 20% 95%;
-    --popover: 19 30% 12%;
-    --popover-foreground: 60 20% 95%;
-    --primary: 11 80% 62%;             /* slightly lighter burnt sienna */
-    --primary-foreground: 19 30% 8%;
-    --secondary: 19 25% 18%;
-    --secondary-foreground: 60 20% 95%;
-    --muted: 19 25% 18%;
-    --muted-foreground: 60 15% 65%;
-    --accent: 28 60% 40%;
-    --accent-foreground: 60 20% 95%;
-    --destructive: 0 70% 45%;
-    --destructive-foreground: 60 20% 95%;
-    --border: 19 20% 22%;
-    --input: 19 20% 22%;
-    --ring: 11 80% 62%;
+    --background: oklch(0.23 0.01 260.69);
+    --foreground: oklch(0.93 0 0);
+    --card: oklch(0.26 0.01 260.70);
+    --card-foreground: oklch(0.93 0 0);
+    --popover: oklch(0.26 0.01 260.70);
+    --popover-foreground: oklch(0.93 0 0);
+    --primary: oklch(0.58 0.14 327.21);
+    --primary-foreground: oklch(1.00 0 0);
+    --secondary: oklch(0.30 0.01 254.00);
+    --secondary-foreground: oklch(0.93 0 0);
+    --muted: oklch(0.26 0.01 260.70);
+    --muted-foreground: oklch(0.68 0 0);
+    --accent: oklch(0.33 0.03 326.28);
+    --accent-foreground: oklch(0.93 0 0);
+    --destructive: oklch(0.59 0.22 11.39);
+    --destructive-foreground: oklch(0.93 0 0);
+    --border: oklch(0.30 0.01 268.37);
+    --input: oklch(0.30 0.01 268.37);
+    --ring: oklch(0.58 0.14 327.21);
   }
 }
 
@@ -60,7 +58,7 @@
   }
 }
 
-/* Animations */
+/* Animations (used by confetti / theme toggle / status changes) */
 @keyframes float-up {
   0% { transform: translateY(0); opacity: 1; }
   100% { transform: translateY(-30px); opacity: 0; }
@@ -73,8 +71,8 @@
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.5); }
-  50% { box-shadow: 0 0 0 6px hsl(var(--primary) / 0); }
+  0%, 100% { box-shadow: 0 0 0 0 var(--primary); }
+  50% { box-shadow: 0 0 0 6px transparent; }
 }
 
 .animate-wiggle { animation: wiggle 0.6s ease-in-out; }

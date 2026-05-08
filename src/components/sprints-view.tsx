@@ -7,6 +7,7 @@ import {
   CalendarRange,
   ChevronDown,
   ChevronRight,
+  Pencil,
   Plus,
   Trash2,
   Zap,
@@ -56,7 +57,7 @@ type Sprint = {
 type Member = { id: string; name: string | null; email: string; image: string | null };
 
 const STATUS_COLORS: Record<string, string> = {
-  PLANNED: "bg-slate-100 text-slate-700 border-slate-200",
+  PLANNED: "bg-muted text-foreground border-border",
   ACTIVE: "bg-emerald-100 text-emerald-700 border-emerald-200",
   COMPLETED: "bg-indigo-100 text-indigo-700 border-indigo-200",
 };
@@ -81,6 +82,52 @@ export function SprintsView({
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [status, setStatus] = useState("PLANNED");
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editGoal, setEditGoal] = useState("");
+  const [editStartDate, setEditStartDate] = useState("");
+  const [editEndDate, setEditEndDate] = useState("");
+
+  function startEdit(s: Sprint) {
+    setEditingId(s.id);
+    setEditName(s.name);
+    setEditGoal(s.goal ?? "");
+    setEditStartDate(s.startDate.slice(0, 10));
+    setEditEndDate(s.endDate.slice(0, 10));
+  }
+
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingId) return;
+    const res = await fetch(`/api/projects/${projectId}/sprints/${editingId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        name: editName,
+        goal: editGoal || null,
+        startDate: editStartDate,
+        endDate: editEndDate,
+      }),
+    });
+    if (!res.ok) return toast.error("Failed to save");
+    const updated = await res.json();
+    setSprints(
+      sprints.map((s) =>
+        s.id === editingId
+          ? {
+              ...s,
+              name: updated.name,
+              goal: updated.goal,
+              startDate: updated.startDate,
+              endDate: updated.endDate,
+            }
+          : s,
+      ),
+    );
+    setEditingId(null);
+    router.refresh();
+  }
 
   function toggle(id: string) {
     setCollapsed((c) => ({ ...c, [id]: !c[id] }));
@@ -198,8 +245,15 @@ export function SprintsView({
                       </SelectContent>
                     </Select>
                     <button
+                      onClick={() => startEdit(s)}
+                      className="text-muted-foreground hover:text-foreground p-1"
+                      aria-label="Edit sprint"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
                       onClick={() => deleteSprint(s.id)}
-                      className="text-muted-foreground hover:text-red-600 p-1"
+                      className="text-muted-foreground hover:text-destructive p-1"
                       aria-label="Delete sprint"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -214,7 +268,7 @@ export function SprintsView({
                     </span>
                     <span>{pct}%</span>
                   </div>
-                  <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                     <div
                       className="h-full bg-emerald-500"
                       style={{ width: `${pct}%` }}
@@ -259,7 +313,7 @@ export function SprintsView({
                                 <td
                                   className={cn(
                                     "px-3 py-2 text-muted-foreground",
-                                    overdue && "text-red-600 font-medium",
+                                    overdue && "text-destructive font-medium",
                                   )}
                                 >
                                   {formatDate(t.endDate)}
@@ -305,6 +359,55 @@ export function SprintsView({
         onOpenChange={(v) => !v && setTaskDialogSprintId(null)}
         defaultSprintId={taskDialogSprintId}
       />
+
+      <Dialog open={editingId !== null} onOpenChange={(v) => !v && setEditingId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit sprint</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={saveEdit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Name</Label>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Goal</Label>
+              <Textarea
+                rows={2}
+                value={editGoal}
+                onChange={(e) => setEditGoal(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Start date</Label>
+                <Input
+                  type="date"
+                  value={editStartDate}
+                  onChange={(e) => setEditStartDate(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>End date</Label>
+                <Input
+                  type="date"
+                  value={editEndDate}
+                  onChange={(e) => setEditEndDate(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit">Save changes</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={openSprintDialog} onOpenChange={setOpenSprintDialog}>
         <DialogContent>

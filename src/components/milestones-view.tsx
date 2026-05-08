@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Flag, Plus, Trash2, Calendar } from "lucide-react";
+import { Flag, Plus, Trash2, Calendar, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,7 +37,7 @@ type Milestone = {
 const STATUS_COLORS: Record<string, string> = {
   UPCOMING: "bg-amber-100 text-amber-700 border-amber-200",
   REACHED: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  MISSED: "bg-red-100 text-red-700 border-red-200",
+  MISSED: "bg-destructive/15 text-destructive border-destructive/30",
 };
 
 export function MilestonesView({
@@ -53,6 +53,10 @@ export function MilestonesView({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editDueDate, setEditDueDate] = useState("");
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
@@ -80,6 +84,43 @@ export function MilestonesView({
     });
     if (!res.ok) return toast.error("Failed");
     setMilestones(milestones.map((m) => (m.id === id ? { ...m, status } : m)));
+  }
+
+  function startEdit(m: Milestone) {
+    setEditingId(m.id);
+    setEditTitle(m.title);
+    setEditDescription(m.description ?? "");
+    setEditDueDate(m.dueDate ? m.dueDate.slice(0, 10) : "");
+  }
+
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingId) return;
+    const res = await fetch(`/api/projects/${projectId}/milestones/${editingId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        title: editTitle,
+        description: editDescription || null,
+        dueDate: editDueDate || null,
+      }),
+    });
+    if (!res.ok) return toast.error("Failed to save");
+    const updated = await res.json();
+    setMilestones(
+      milestones.map((m) =>
+        m.id === editingId
+          ? {
+              ...m,
+              title: updated.title,
+              description: updated.description,
+              dueDate: updated.dueDate,
+            }
+          : m,
+      ),
+    );
+    setEditingId(null);
+    router.refresh();
   }
 
   async function remove(id: string) {
@@ -125,7 +166,7 @@ export function MilestonesView({
                         {m.status}
                       </Badge>
                       {overdue && (
-                        <Badge className="border bg-red-50 text-red-700 border-red-200">
+                        <Badge className="border bg-destructive/10 text-destructive border-destructive/30">
                           overdue
                         </Badge>
                       )}
@@ -152,8 +193,15 @@ export function MilestonesView({
                       </SelectContent>
                     </Select>
                     <button
+                      onClick={() => startEdit(m)}
+                      className="text-muted-foreground hover:text-foreground p-1"
+                      aria-label="Edit milestone"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
                       onClick={() => remove(m.id)}
-                      className="text-muted-foreground hover:text-red-600 p-1"
+                      className="text-muted-foreground hover:text-destructive p-1"
                       aria-label="Delete milestone"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -167,7 +215,7 @@ export function MilestonesView({
                       <span>{done}/{total} linked tasks done</span>
                       <span>{pct}%</span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                    <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                       <div className="h-full bg-emerald-500" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
@@ -177,6 +225,43 @@ export function MilestonesView({
           })}
         </ul>
       )}
+
+      <Dialog open={editingId !== null} onOpenChange={(v) => !v && setEditingId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit milestone</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={saveEdit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Title</Label>
+              <Input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                rows={2}
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Due date</Label>
+              <Input
+                type="date"
+                value={editDueDate}
+                onChange={(e) => setEditDueDate(e.target.value)}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="submit">Save changes</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>

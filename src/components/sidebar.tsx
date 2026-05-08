@@ -36,7 +36,7 @@ export function Sidebar({ projects }: { projects: Project[] }) {
           <span>Projects</span>
           <button
             onClick={() => setOpen(true)}
-            className="rounded p-1 hover:bg-slate-100 text-muted-foreground"
+            className="rounded p-1 hover:bg-accent/30 text-muted-foreground"
             aria-label="New project"
           >
             <Plus className="h-3.5 w-3.5" />

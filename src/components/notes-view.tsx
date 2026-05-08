@@ -97,13 +97,13 @@ export function NotesView({
       </div>
 
       {notes.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-12 text-center border rounded-md bg-white">
+        <p className="text-sm text-muted-foreground py-12 text-center border rounded-md bg-card">
           No notes yet. Capture meeting notes, decisions, and references here.
         </p>
       ) : (
         <ul className="grid gap-3">
           {notes.map((n) => (
-            <li key={n.id} className="rounded-md border bg-white p-4">
+            <li key={n.id} className="rounded-md border bg-card p-4">
               {editingId === n.id ? (
                 <div className="space-y-2">
                   <Input
@@ -143,7 +143,7 @@ export function NotesView({
                       </button>
                       <button
                         onClick={() => remove(n.id)}
-                        className="text-muted-foreground hover:text-red-600 p-1"
+                        className="text-muted-foreground hover:text-destructive p-1"
                         aria-label="Delete note"
                       >
                         <Trash2 className="h-4 w-4" />

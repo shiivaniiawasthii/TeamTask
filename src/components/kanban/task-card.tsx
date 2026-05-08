@@ -51,7 +51,7 @@ export function TaskCard({
           <Badge
             className={cn(
               "border bg-white text-foreground",
-              overdue && "border-red-300 bg-red-50 text-red-700",
+              overdue && "border-destructive/40 bg-destructive/10 text-destructive",
             )}
           >
             <CalendarDays className="h-3 w-3 mr-1" />
@@ -85,7 +85,7 @@ export function TaskCard({
             <span>
               {completedSubs}/{task.subtasks.length} subtasks
             </span>
-            <div className="flex-1 h-1 rounded-full bg-slate-100 overflow-hidden">
+            <div className="flex-1 h-1 rounded-full bg-muted overflow-hidden">
               <div
                 className="h-full bg-emerald-500"
                 style={{ width: `${subProgressPct}%` }}

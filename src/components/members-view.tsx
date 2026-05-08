@@ -192,7 +192,7 @@ export function MembersView({
                       className={
                         m.role === "ADMIN"
                           ? "bg-indigo-100 text-indigo-700 border-indigo-200"
-                          : "bg-slate-100 text-slate-700 border-slate-200"
+                          : "bg-muted text-foreground border-border"
                       }
                     >
                       {m.role === "ADMIN" && <Shield className="h-3 w-3 mr-1" />}
@@ -208,7 +208,7 @@ export function MembersView({
                     {m.userId !== currentUserId && (
                       <button
                         onClick={() => removeMember(m.userId, m.name, m.email)}
-                        className="text-muted-foreground hover:text-red-600 p-1"
+                        className="text-muted-foreground hover:text-destructive p-1"
                         aria-label="Remove member"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -243,7 +243,7 @@ export function MembersView({
                   <tr key={i.id} className="border-b last:border-b-0 hover:bg-muted/40">
                     <td className="px-4 py-2">{i.email}</td>
                     <td className="px-3 py-2">
-                      <Badge className="bg-slate-100 text-slate-700 border-slate-200">
+                      <Badge className="bg-muted text-foreground border-border">
                         {i.role}
                       </Badge>
                     </td>
@@ -254,7 +254,7 @@ export function MembersView({
                     <td className="px-3 py-2">
                       <button
                         onClick={() => cancelInvite(i.id)}
-                        className="text-muted-foreground hover:text-red-600 p-1"
+                        className="text-muted-foreground hover:text-destructive p-1"
                         aria-label="Cancel invitation"
                       >
                         <Trash2 className="h-4 w-4" />

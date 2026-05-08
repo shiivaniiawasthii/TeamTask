@@ -17,7 +17,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ArrowUpDown, ChevronDown, ChevronRight, Plus } from "lucide-react";
-import { cn, formatDate, initials, priorityColor } from "@/lib/utils";
+import { cn, initials, priorityColor } from "@/lib/utils";
 
 type Task = {
   id: string;
@@ -102,7 +102,7 @@ export function ListView({
         particleCount: 120,
         spread: 80,
         origin: { y: 0.7 },
-        colors: ["#E35336", "#F4A460", "#A0522D", "#F5F5DC"],
+        colors: ["#7c2d77", "#a8418a", "#c769b8", "#e9d3e3", "#ffd1eb"],
       });
       toast.success("🎉 Task complete — nice work!");
     }
@@ -236,9 +236,19 @@ export function ListView({
       {grouped ? (
         <div className="space-y-3">
           {grouped.length === 0 && (
-            <p className="text-center text-muted-foreground py-8 border rounded-md bg-card">
-              No tasks match your filters.
-            </p>
+            <div className="text-center py-12 border rounded-md bg-card space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {tasks.length === 0
+                  ? "No tasks yet."
+                  : "No tasks match your filters."}
+              </p>
+              <button
+                onClick={() => setTaskDialogSprintId(null)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm bg-primary text-primary-foreground hover:opacity-90 transition"
+              >
+                <Plus className="h-3.5 w-3.5" /> Add task
+              </button>
+            </div>
           )}
           {grouped.map((g) => {
             const isCollapsed = collapsed[g.key];
@@ -329,8 +339,18 @@ export function ListView({
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-3 py-8 text-center text-muted-foreground">
-                    No tasks match your filters.
+                  <td colSpan={9} className="px-3 py-8 text-center">
+                    <p className="text-sm text-muted-foreground mb-3">
+                      {tasks.length === 0
+                        ? "No tasks yet."
+                        : "No tasks match your filters."}
+                    </p>
+                    <button
+                      onClick={() => setTaskDialogSprintId(null)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm bg-primary text-primary-foreground hover:opacity-90 transition"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Add task
+                    </button>
                   </td>
                 </tr>
               )}
@@ -445,7 +465,7 @@ function TaskRow({
         </Select>
       </td>
       <td
-        className={cn("px-3 py-2", overdue && "text-red-600 font-medium")}
+        className={cn("px-3 py-2", overdue && "text-destructive font-medium")}
         onClick={stop}
       >
         <Input

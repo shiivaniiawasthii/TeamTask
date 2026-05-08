@@ -19,7 +19,7 @@ export function KanbanColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex flex-col w-72 shrink-0 bg-slate-100 rounded-md p-2",
+        "flex flex-col w-72 shrink-0 bg-muted rounded-md p-2",
         isOver && "ring-2 ring-primary",
       )}
     >
