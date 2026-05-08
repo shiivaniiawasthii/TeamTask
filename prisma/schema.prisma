@@ -36,6 +36,7 @@ model User {
   whiteboards     Whiteboard[]
   notes           Note[]
   sentInvitations Invitation[]     @relation("InvitationInviter")
+  taskAssignments TaskAssignee[]   @relation("TaskAssigneeUser")
 }
 
 model Account {
@@ -130,6 +131,7 @@ model Task {
   milestone Milestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
   subtasks  Subtask[]
   comments  Comment[]
+  assignees TaskAssignee[]
 
   @@index([projectId, status])
   @@index([assigneeId])
@@ -234,6 +236,18 @@ model ProcessedEmail {
   messageId   String   @unique
   taskId      String?
   receivedAt  DateTime @default(now())
+}
+
+model TaskAssignee {
+  taskId     String
+  userId     String
+  assignedAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation("TaskAssigneeUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, userId])
+  @@index([userId])
 }
 
 model Invitation {

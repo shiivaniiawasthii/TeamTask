@@ -128,6 +128,60 @@ export async function sendDueReminderEmail(taskId: string) {
   });
 }
 
+export async function sendCompletionEmail(taskId: string, completedById: string) {
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: {
+      project: { select: { id: true, name: true } },
+      creator: { select: { id: true, email: true, name: true } },
+      assignees: {
+        include: { user: { select: { id: true, email: true, name: true } } },
+      },
+    },
+  });
+  if (!task) return;
+
+  const completedBy = await prisma.user.findUnique({
+    where: { id: completedById },
+    select: { name: true, email: true },
+  });
+
+  const recipients = new Map<string, { email: string; name: string | null }>();
+  for (const a of task.assignees) {
+    if (a.user.id !== completedById)
+      recipients.set(a.user.email, { email: a.user.email, name: a.user.name });
+  }
+  if (task.creator && task.creator.id !== completedById) {
+    recipients.set(task.creator.email, {
+      email: task.creator.email,
+      name: task.creator.name,
+    });
+  }
+  if (recipients.size === 0) return;
+
+  const url = taskUrl(task.project.id, task.id);
+  const completerName = completedBy?.name ?? completedBy?.email ?? "Someone";
+
+  await Promise.all(
+    Array.from(recipients.values()).map((r) =>
+      sendMail({
+        to: r.email,
+        subject: `[${task.project.name}] ✅ Completed: ${task.title}`,
+        replyTo: replyToForTask(task.id),
+        html: `
+          <p>Hi ${r.name ?? ""},</p>
+          <p><strong>${escapeHtml(completerName)}</strong> marked this task as
+            <strong>Done</strong>:</p>
+          <p style="font-size:16px;font-weight:600">${escapeHtml(task.title)}</p>
+          <p><a href="${url}">View task →</a></p>
+          ${footer(task.id)}
+        `,
+        text: `${completerName} marked done: ${task.title}\n\n${url}`,
+      }),
+    ),
+  );
+}
+
 export async function sendInvitationEmail(invitationId: string) {
   const inv = await prisma.invitation.findUnique({
     where: { id: invitationId },

@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AssigneeMultiSelect } from "@/components/assignee-multi-select";
 import type { Member } from "@/components/kanban/kanban-board";
 
 type SprintOpt = { id: string; name: string };
@@ -44,7 +45,7 @@ export function CreateTaskDialog({
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState("TODO");
   const [priority, setPriority] = useState("MEDIUM");
-  const [assigneeId, setAssigneeId] = useState<string>("__unassigned");
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [sprintId, setSprintId] = useState<string>(defaultSprintId ?? "__none");
@@ -77,7 +78,7 @@ export function CreateTaskDialog({
         description: description || undefined,
         status,
         priority,
-        assigneeId: assigneeId === "__unassigned" ? null : assigneeId,
+        assigneeIds,
         startDate: startDate || null,
         endDate: endDate || null,
         sprintId: sprintId === "__none" ? null : sprintId,
@@ -95,7 +96,7 @@ export function CreateTaskDialog({
     setStatus("TODO");
     setStartDate("");
     setEndDate("");
-    setAssigneeId("__unassigned");
+    setAssigneeIds([]);
     setSprintId("__none");
     setMilestoneId("__none");
     setPriority("MEDIUM");
@@ -149,21 +150,13 @@ export function CreateTaskDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Assignee</Label>
-              <Select value={assigneeId} onValueChange={setAssigneeId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Unassigned" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__unassigned">Unassigned</SelectItem>
-                  {members.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.name ?? m.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-2 col-span-2">
+              <Label>Assignees</Label>
+              <AssigneeMultiSelect
+                members={members}
+                value={assigneeIds}
+                onChange={setAssigneeIds}
+              />
             </div>
             <div className="space-y-2">
               <Label>Start date</Label>

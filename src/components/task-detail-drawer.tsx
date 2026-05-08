@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { AssigneeMultiSelect } from "@/components/assignee-multi-select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { initials, formatDate } from "@/lib/utils";
@@ -37,6 +38,7 @@ type TaskDetail = {
   startDate: string | null;
   endDate: string | null;
   assignee: Member | null;
+  assignees: Member[];
   creator: Member;
   subtasks: { id: string; title: string; done: boolean; position: number }[];
   sprint: { id: string; name: string } | null;
@@ -235,22 +237,13 @@ export function TaskDetailDrawer({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
-                <Label>Assignee</Label>
-                <Select
-                  value={task.assignee?.id ?? "__unassigned"}
-                  onValueChange={(v) => patch({ assigneeId: v === "__unassigned" ? null : v })}
-                >
-                  <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__unassigned">Unassigned</SelectItem>
-                    {members.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>
-                        {m.name ?? m.email}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="space-y-1 col-span-2">
+                <Label>Assignees</Label>
+                <AssigneeMultiSelect
+                  members={members}
+                  value={(task.assignees ?? (task.assignee ? [task.assignee] : [])).map((a) => a.id)}
+                  onChange={(ids) => patch({ assigneeIds: ids })}
+                />
               </div>
               <div className="space-y-1">
                 <Label>Start date</Label>

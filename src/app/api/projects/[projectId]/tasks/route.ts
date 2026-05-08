@@ -12,6 +12,7 @@ const schema = z.object({
   startDate: z.string().nullable().optional(),
   endDate: z.string().nullable().optional(),
   assigneeId: z.string().nullable().optional(),
+  assigneeIds: z.array(z.string()).optional(),
   sprintId: z.string().nullable().optional(),
   milestoneId: z.string().nullable().optional(),
 });
@@ -31,6 +32,13 @@ export async function POST(
   if (!parsed.success) return NextResponse.json({ error: "Invalid input" }, { status: 400 });
   const data = parsed.data;
 
+  // Resolve the list of assignees: prefer assigneeIds[], fall back to assigneeId.
+  const assigneeIds = data.assigneeIds && data.assigneeIds.length > 0
+    ? data.assigneeIds
+    : data.assigneeId
+      ? [data.assigneeId]
+      : [];
+
   const lastInCol = await prisma.task.findFirst({
     where: { projectId: params.projectId, status: data.status },
     orderBy: { position: "desc" },
@@ -45,17 +53,32 @@ export async function POST(
       priority: data.priority,
       startDate: data.startDate ? new Date(data.startDate) : null,
       endDate: data.endDate ? new Date(data.endDate) : null,
-      assigneeId: data.assigneeId || null,
+      // Legacy single assignee = first in list (for backward-compat reads).
+      assigneeId: assigneeIds[0] ?? null,
       sprintId: data.sprintId || null,
       milestoneId: data.milestoneId || null,
       creatorId: user.id,
       position: (lastInCol?.position ?? -1) + 1,
+      assignees: {
+        create: assigneeIds.map((userId) => ({ userId })),
+      },
     },
-    include: { assignee: true, project: true },
+    include: {
+      assignees: { include: { user: true } },
+      project: true,
+    },
   });
 
-  if (task.assignee) {
-    sendAssignmentEmail(task).catch((e) => console.error("assignment email", e));
+  // Email each assignee.
+  for (const a of task.assignees) {
+    sendAssignmentEmail({
+      id: task.id,
+      title: task.title,
+      projectId: task.projectId,
+      assigneeId: a.userId,
+      assignee: { email: a.user.email, name: a.user.name },
+      project: { name: task.project.name },
+    }).catch((e) => console.error("assignment email", e));
   }
 
   return NextResponse.json(task);
