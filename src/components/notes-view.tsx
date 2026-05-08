@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { FileText, Plus, Trash2, Pencil, Save, X } from "lucide-react";
@@ -35,6 +35,7 @@ export function NotesView({
 }) {
   const router = useRouter();
   const [notes, setNotes] = useState<Note[]>(initialNotes);
+  useEffect(() => setNotes(initialNotes), [initialNotes]);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");

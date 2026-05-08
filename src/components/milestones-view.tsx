@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Flag, Plus, Trash2, Calendar, Pencil } from "lucide-react";
@@ -49,6 +49,7 @@ export function MilestonesView({
 }) {
   const router = useRouter();
   const [milestones, setMilestones] = useState<Milestone[]>(initialMilestones);
+  useEffect(() => setMilestones(initialMilestones), [initialMilestones]);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");

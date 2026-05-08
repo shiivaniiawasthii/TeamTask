@@ -44,42 +44,68 @@ export async function POST(
   }
 
   const expiresAt = new Date(Date.now() + EXPIRY_DAYS * 24 * 60 * 60 * 1000);
-  const created: { email: string; status: "invited" | "already_member" | "already_invited" }[] = [];
+  const created: {
+    email: string;
+    status: "invited" | "already_member";
+  }[] = [];
 
   for (const rawEmail of parsed.data.emails) {
     const email = rawEmail.toLowerCase().trim();
 
-    const existingUser = await prisma.user.findUnique({ where: { email } });
-    if (existingUser) {
-      const existingMember = await prisma.projectMember.findUnique({
-        where: { projectId_userId: { projectId: params.projectId, userId: existingUser.id } },
+    // Find or create the user. If they don't exist, create a stub with no password.
+    let userRow = await prisma.user.findUnique({ where: { email } });
+    if (!userRow) {
+      userRow = await prisma.user.create({
+        data: { email, passwordHash: null, name: null },
       });
-      if (existingMember) {
-        created.push({ email, status: "already_member" });
-        continue;
-      }
     }
 
-    const existingInvite = await prisma.invitation.findFirst({
-      where: { projectId: params.projectId, email, status: "PENDING" },
+    // Skip if already a member (re-inviting an existing member is a no-op).
+    const existingMember = await prisma.projectMember.findUnique({
+      where: {
+        projectId_userId: { projectId: params.projectId, userId: userRow.id },
+      },
     });
-    if (existingInvite) {
-      created.push({ email, status: "already_invited" });
+    if (existingMember) {
+      created.push({ email, status: "already_member" });
       continue;
     }
 
-    const token = crypto.randomBytes(32).toString("hex");
-    const inv = await prisma.invitation.create({
+    // Add them as a project member RIGHT NOW so they're assignable immediately.
+    await prisma.projectMember.create({
       data: {
-        email,
         projectId: params.projectId,
+        userId: userRow.id,
         role: parsed.data.role,
-        token,
-        invitedById: user.id,
-        expiresAt,
       },
     });
-    sendInvitationEmail(inv.id).catch((e) => console.error("invite email", e));
+
+    // Reuse any existing pending invite, or create a fresh token.
+    const existingInvite = await prisma.invitation.findFirst({
+      where: { projectId: params.projectId, email, status: "PENDING" },
+    });
+
+    let invitationId: string;
+    if (existingInvite) {
+      invitationId = existingInvite.id;
+    } else {
+      const token = crypto.randomBytes(32).toString("hex");
+      const inv = await prisma.invitation.create({
+        data: {
+          email,
+          projectId: params.projectId,
+          role: parsed.data.role,
+          token,
+          invitedById: user.id,
+          expiresAt,
+        },
+      });
+      invitationId = inv.id;
+    }
+
+    sendInvitationEmail(invitationId).catch((e) =>
+      console.error("invite email", e),
+    );
     created.push({ email, status: "invited" });
   }
 

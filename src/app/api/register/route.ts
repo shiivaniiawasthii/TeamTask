@@ -19,11 +19,7 @@ export async function POST(req: NextRequest) {
   const { email, name, password, inviteToken } = parsed.data;
   const lowered = email.toLowerCase();
 
-  const existing = await prisma.user.findUnique({ where: { email: lowered } });
-  if (existing) {
-    return NextResponse.json({ error: "Email already registered" }, { status: 409 });
-  }
-
+  // Validate the invite token up front (if provided).
   let invitation: Awaited<ReturnType<typeof prisma.invitation.findUnique>> = null;
   if (inviteToken) {
     invitation = await prisma.invitation.findUnique({ where: { token: inviteToken } });
@@ -41,6 +37,46 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const existing = await prisma.user.findUnique({ where: { email: lowered } });
+
+  if (existing) {
+    if (existing.passwordHash) {
+      return NextResponse.json({ error: "Email already registered" }, { status: 409 });
+    }
+    // Stub user (created during invite) — activate by setting password.
+    if (!invitation) {
+      return NextResponse.json(
+        { error: "This email has a pending invitation. Use the link sent to your email." },
+        { status: 400 },
+      );
+    }
+    const passwordHash = await bcrypt.hash(password, 10);
+    const activated = await prisma.user.update({
+      where: { id: existing.id },
+      data: { passwordHash, name },
+      select: { id: true, email: true, name: true },
+    });
+    await prisma.invitation.update({
+      where: { id: invitation.id },
+      data: { status: "ACCEPTED", acceptedAt: new Date() },
+    });
+    // ProjectMember already exists from the invite — make sure of it just in case.
+    await prisma.projectMember.upsert({
+      where: {
+        projectId_userId: { projectId: invitation.projectId, userId: existing.id },
+      },
+      create: {
+        projectId: invitation.projectId,
+        userId: existing.id,
+        role: invitation.role,
+      },
+      update: {},
+    });
+    return NextResponse.json({ ...activated, projectId: invitation.projectId });
+  }
+
+  // Brand-new user (no stub yet — invite path normally creates a stub, so this is
+  // mainly the open-signup path).
   const passwordHash = await bcrypt.hash(password, 10);
   const user = await prisma.user.create({
     data: { email: lowered, name, passwordHash },
@@ -49,8 +85,16 @@ export async function POST(req: NextRequest) {
 
   let projectId: string | undefined;
   if (invitation) {
-    await prisma.projectMember.create({
-      data: { projectId: invitation.projectId, userId: user.id, role: invitation.role },
+    await prisma.projectMember.upsert({
+      where: {
+        projectId_userId: { projectId: invitation.projectId, userId: user.id },
+      },
+      create: {
+        projectId: invitation.projectId,
+        userId: user.id,
+        role: invitation.role,
+      },
+      update: {},
     });
     await prisma.invitation.update({
       where: { id: invitation.id },

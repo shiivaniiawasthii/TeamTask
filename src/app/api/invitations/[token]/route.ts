@@ -14,6 +14,13 @@ export async function GET(
     },
   });
   if (!inv) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const userRow = await prisma.user.findUnique({
+    where: { email: inv.email },
+    select: { passwordHash: true },
+  });
+  const userActivated = !!userRow?.passwordHash;
+
   return NextResponse.json({
     email: inv.email,
     role: inv.role,
@@ -21,6 +28,7 @@ export async function GET(
     expiresAt: inv.expiresAt,
     project: inv.project,
     invitedBy: inv.invitedBy,
+    userActivated,
   });
 }
 

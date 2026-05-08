@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -73,6 +73,7 @@ export function SprintsView({
 }) {
   const router = useRouter();
   const [sprints, setSprints] = useState<Sprint[]>(initialSprints);
+  useEffect(() => setSprints(initialSprints), [initialSprints]);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [openSprintDialog, setOpenSprintDialog] = useState(false);
   const [taskDialogSprintId, setTaskDialogSprintId] = useState<string | null>(null);
