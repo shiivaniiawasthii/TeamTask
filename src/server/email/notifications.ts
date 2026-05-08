@@ -128,6 +128,30 @@ export async function sendDueReminderEmail(taskId: string) {
   });
 }
 
+export async function sendPasswordResetEmail(
+  email: string,
+  name: string | null,
+  token: string,
+  expiresAt: Date,
+) {
+  const url = `${APP_URL}/reset-password/${token}`;
+  await sendMail({
+    to: email,
+    subject: "Reset your Team Tasks password",
+    html: `
+      <p>Hi ${name ? escapeHtml(name) : ""},</p>
+      <p>We received a request to reset your password. Click the button below to set a new one:</p>
+      <p><a href="${url}" style="display:inline-block;background:var(--primary);color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;background:#7c2d77">Reset password →</a></p>
+      <p style="font-size:12px;color:#6b7280">
+        This link expires on ${expiresAt.toDateString()} ${expiresAt.toTimeString().slice(0, 5)}.
+        If you didn't request this, you can safely ignore this email — your password won't change.
+      </p>
+      <p style="font-size:12px;color:#6b7280">Or paste this link into your browser:<br/>${url}</p>
+    `,
+    text: `Reset your password: ${url}\n\nExpires ${expiresAt.toISOString()}.\n\nIf you didn't request this, ignore this email.`,
+  });
+}
+
 export async function sendCompletionEmail(taskId: string, completedById: string) {
   const task = await prisma.task.findUnique({
     where: { id: taskId },

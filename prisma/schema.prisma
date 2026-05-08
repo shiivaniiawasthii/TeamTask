@@ -37,6 +37,7 @@ model User {
   notes           Note[]
   sentInvitations Invitation[]     @relation("InvitationInviter")
   taskAssignments TaskAssignee[]   @relation("TaskAssigneeUser")
+  passwordResets  PasswordResetToken[] @relation("UserPasswordResets")
 }
 
 model Account {
@@ -236,6 +237,19 @@ model ProcessedEmail {
   messageId   String   @unique
   taskId      String?
   receivedAt  DateTime @default(now())
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation("UserPasswordResets", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model TaskAssignee {
