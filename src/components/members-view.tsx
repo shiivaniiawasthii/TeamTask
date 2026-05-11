@@ -34,6 +34,29 @@ type Member = {
   joinedAt: string;
 };
 
+type Role = "ADMIN" | "PROJECT_MANAGER" | "LEAD" | "MEMBER";
+
+const ROLE_LABEL: Record<Role, string> = {
+  ADMIN: "Admin",
+  PROJECT_MANAGER: "Project Manager",
+  LEAD: "Lead",
+  MEMBER: "Member",
+};
+
+const ROLE_DESCRIPTION: Record<Role, string> = {
+  ADMIN: "Full project control, including delete",
+  PROJECT_MANAGER: "Manage members, edit project, plan work",
+  LEAD: "Plan sprints and milestones; manage tasks",
+  MEMBER: "View and edit assigned tasks; comment",
+};
+
+const ROLE_STYLE: Record<Role, string> = {
+  ADMIN: "bg-primary/15 text-primary border-primary/30",
+  PROJECT_MANAGER: "bg-accent/40 text-accent-foreground border-accent",
+  LEAD: "bg-muted text-foreground border-border",
+  MEMBER: "bg-muted text-muted-foreground border-border",
+};
+
 type Invitation = {
   id: string;
   email: string;
@@ -60,7 +83,7 @@ export function MembersView({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [emails, setEmails] = useState("");
-  const [role, setRole] = useState<"ADMIN" | "MEMBER">("MEMBER");
+  const [role, setRole] = useState<Role>("MEMBER");
   const [submitting, setSubmitting] = useState(false);
 
   async function invite(e: React.FormEvent) {
@@ -98,7 +121,7 @@ export function MembersView({
     router.refresh();
   }
 
-  async function changeRole(userId: string, newRole: "ADMIN" | "MEMBER") {
+  async function changeRole(userId: string, newRole: Role) {
     const res = await fetch(`/api/projects/${projectId}/members/${userId}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
@@ -177,26 +200,25 @@ export function MembersView({
                   {isAdmin ? (
                     <Select
                       value={m.role}
-                      onValueChange={(v) => changeRole(m.userId, v as "ADMIN" | "MEMBER")}
+                      onValueChange={(v) => changeRole(m.userId, v as Role)}
                     >
-                      <SelectTrigger className="h-8 w-32 text-xs">
+                      <SelectTrigger className="h-8 w-44 text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="ADMIN">Admin</SelectItem>
-                        <SelectItem value="MEMBER">Member</SelectItem>
+                        {(["ADMIN", "PROJECT_MANAGER", "LEAD", "MEMBER"] as Role[]).map(
+                          (r) => (
+                            <SelectItem key={r} value={r}>
+                              {ROLE_LABEL[r]}
+                            </SelectItem>
+                          ),
+                        )}
                       </SelectContent>
                     </Select>
                   ) : (
-                    <Badge
-                      className={
-                        m.role === "ADMIN"
-                          ? "bg-indigo-100 text-indigo-700 border-indigo-200"
-                          : "bg-muted text-foreground border-border"
-                      }
-                    >
+                    <Badge className={ROLE_STYLE[m.role as Role] ?? ROLE_STYLE.MEMBER}>
                       {m.role === "ADMIN" && <Shield className="h-3 w-3 mr-1" />}
-                      {m.role}
+                      {ROLE_LABEL[m.role as Role] ?? m.role}
                     </Badge>
                   )}
                 </td>
@@ -243,8 +265,8 @@ export function MembersView({
                   <tr key={i.id} className="border-b last:border-b-0 hover:bg-muted/40">
                     <td className="px-4 py-2">{i.email}</td>
                     <td className="px-3 py-2">
-                      <Badge className="bg-muted text-foreground border-border">
-                        {i.role}
+                      <Badge className={ROLE_STYLE[i.role as Role] ?? ROLE_STYLE.MEMBER}>
+                        {ROLE_LABEL[i.role as Role] ?? i.role}
                       </Badge>
                     </td>
                     <td className="px-3 py-2 text-muted-foreground">{i.invitedBy}</td>
@@ -289,13 +311,16 @@ export function MembersView({
             </div>
             <div className="space-y-2">
               <Label>Role</Label>
-              <Select value={role} onValueChange={(v) => setRole(v as "ADMIN" | "MEMBER")}>
+              <Select value={role} onValueChange={(v) => setRole(v as Role)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="MEMBER">Member — can view and edit tasks</SelectItem>
-                  <SelectItem value="ADMIN">Admin — full project control</SelectItem>
+                  {(["MEMBER", "LEAD", "PROJECT_MANAGER", "ADMIN"] as Role[]).map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {ROLE_LABEL[r]} — {ROLE_DESCRIPTION[r]}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

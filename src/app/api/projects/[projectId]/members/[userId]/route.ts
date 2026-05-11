@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { isProjectAdmin, requireUser } from "@/lib/session";
+import { canManageMembers, requireUser } from "@/lib/session";
 
 const patchSchema = z.object({
-  role: z.enum(["ADMIN", "MEMBER"]),
+  role: z.enum(["ADMIN", "PROJECT_MANAGER", "LEAD", "MEMBER"]),
 });
 
 async function adminCount(projectId: string) {
@@ -18,7 +18,7 @@ export async function PATCH(
   { params }: { params: { projectId: string; userId: string } },
 ) {
   const user = await requireUser();
-  if (!(await isProjectAdmin(params.projectId, user.id))) {
+  if (!(await canManageMembers(params.projectId, user.id))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const body = await req.json().catch(() => null);
@@ -53,7 +53,7 @@ export async function DELETE(
   { params }: { params: { projectId: string; userId: string } },
 ) {
   const user = await requireUser();
-  if (!(await isProjectAdmin(params.projectId, user.id))) {
+  if (!(await canManageMembers(params.projectId, user.id))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const target = await prisma.projectMember.findUnique({

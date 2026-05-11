@@ -38,7 +38,7 @@ export function TaskCard({
       {...listeners}
       onClick={onClick}
       className={cn(
-        "rounded-md border bg-white p-3 shadow-sm cursor-grab active:cursor-grabbing",
+        "rounded-md border bg-card p-3 shadow-sm cursor-grab active:cursor-grabbing",
         (isDragging || dragging) && "opacity-50",
       )}
     >
@@ -50,7 +50,7 @@ export function TaskCard({
         {task.endDate && (
           <Badge
             className={cn(
-              "border bg-white text-foreground",
+              "border bg-card text-foreground",
               overdue && "border-destructive/40 bg-destructive/10 text-destructive",
             )}
           >
@@ -59,19 +59,19 @@ export function TaskCard({
           </Badge>
         )}
         {(task.startDate || task.endDate) && (
-          <Badge className="border bg-white text-muted-foreground text-[10px]">
+          <Badge className="border bg-card text-muted-foreground text-[10px]">
             {task.startDate ? formatDate(task.startDate) : "—"} →{" "}
             {task.endDate ? formatDate(task.endDate) : "—"}
           </Badge>
         )}
         {task.sprint && (
-          <Badge className="border bg-indigo-50 text-indigo-700 border-indigo-200">
+          <Badge className="border bg-primary/15 text-primary border-primary/30">
             <Zap className="h-3 w-3 mr-1" />
             {task.sprint.name}
           </Badge>
         )}
         {task.milestone && (
-          <Badge className="border bg-amber-50 text-amber-700 border-amber-200">
+          <Badge className="border bg-accent/40 text-accent-foreground border-accent">
             <Flag className="h-3 w-3 mr-1" />
             {task.milestone.title}
           </Badge>
@@ -106,7 +106,7 @@ export function TaskCard({
                     "inline-block h-2.5 w-2.5 rounded-sm border",
                     s.done
                       ? "bg-emerald-500 border-emerald-500"
-                      : "bg-white border-slate-300",
+                      : "bg-card border-border",
                   )}
                 />
                 <span className="truncate">{s.title}</span>

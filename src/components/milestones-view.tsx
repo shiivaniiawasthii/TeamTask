@@ -25,6 +25,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn, formatDate } from "@/lib/utils";
 
+type SprintRef = { id: string; name: string; status: string };
+
 type Milestone = {
   id: string;
   title: string;
@@ -32,6 +34,7 @@ type Milestone = {
   dueDate: string | null;
   status: string;
   tasks: { id: string; title: string; status: string }[];
+  sprints: SprintRef[];
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -43,9 +46,11 @@ const STATUS_COLORS: Record<string, string> = {
 export function MilestonesView({
   projectId,
   initialMilestones,
+  allSprints,
 }: {
   projectId: string;
   initialMilestones: Milestone[];
+  allSprints: SprintRef[];
 }) {
   const router = useRouter();
   const [milestones, setMilestones] = useState<Milestone[]>(initialMilestones);
@@ -54,10 +59,17 @@ export function MilestonesView({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [sprintIds, setSprintIds] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editDueDate, setEditDueDate] = useState("");
+  const [editSprintIds, setEditSprintIds] = useState<string[]>([]);
+
+  function toggleSprintId(list: string[], setList: (v: string[]) => void, id: string) {
+    if (list.includes(id)) setList(list.filter((v) => v !== id));
+    else setList([...list, id]);
+  }
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
@@ -65,7 +77,12 @@ export function MilestonesView({
     const res = await fetch(`/api/projects/${projectId}/milestones`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ title, description: description || undefined, dueDate: dueDate || null }),
+      body: JSON.stringify({
+        title,
+        description: description || undefined,
+        dueDate: dueDate || null,
+        sprintIds,
+      }),
     });
     if (!res.ok) return toast.error("Failed to create milestone");
     const created = await res.json();
@@ -74,6 +91,7 @@ export function MilestonesView({
     setTitle("");
     setDescription("");
     setDueDate("");
+    setSprintIds([]);
     router.refresh();
   }
 
@@ -92,6 +110,7 @@ export function MilestonesView({
     setEditTitle(m.title);
     setEditDescription(m.description ?? "");
     setEditDueDate(m.dueDate ? m.dueDate.slice(0, 10) : "");
+    setEditSprintIds(m.sprints.map((s) => s.id));
   }
 
   async function saveEdit(e: React.FormEvent) {
@@ -104,6 +123,7 @@ export function MilestonesView({
         title: editTitle,
         description: editDescription || null,
         dueDate: editDueDate || null,
+        sprintIds: editSprintIds,
       }),
     });
     if (!res.ok) return toast.error("Failed to save");
@@ -116,6 +136,7 @@ export function MilestonesView({
               title: updated.title,
               description: updated.description,
               dueDate: updated.dueDate,
+              sprints: updated.sprints ?? m.sprints,
             }
           : m,
       ),
@@ -146,7 +167,7 @@ export function MilestonesView({
       </div>
 
       {milestones.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-12 text-center border rounded-md bg-white">
+        <p className="text-sm text-muted-foreground py-12 text-center border rounded-md bg-card">
           No milestones yet. Define key checkpoints for this project.
         </p>
       ) : (
@@ -158,7 +179,7 @@ export function MilestonesView({
             const overdue =
               m.dueDate && m.status === "UPCOMING" && new Date(m.dueDate) < new Date();
             return (
-              <li key={m.id} className="rounded-md border bg-white p-4">
+              <li key={m.id} className="rounded-md border bg-card p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -180,6 +201,18 @@ export function MilestonesView({
                         <Calendar className="h-3.5 w-3.5" />
                         Due {formatDate(m.dueDate)}
                       </p>
+                    )}
+                    {m.sprints.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {m.sprints.map((s) => (
+                          <Badge
+                            key={s.id}
+                            className="border bg-primary/10 text-primary border-primary/30 text-[10px]"
+                          >
+                            {s.name}
+                          </Badge>
+                        ))}
+                      </div>
                     )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -257,6 +290,11 @@ export function MilestonesView({
                 onChange={(e) => setEditDueDate(e.target.value)}
               />
             </div>
+            <SprintChipPicker
+              allSprints={allSprints}
+              value={editSprintIds}
+              onToggle={(id) => toggleSprintId(editSprintIds, setEditSprintIds, id)}
+            />
             <DialogFooter>
               <Button type="submit">Save changes</Button>
             </DialogFooter>
@@ -286,12 +324,60 @@ export function MilestonesView({
               <Label>Due date</Label>
               <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
             </div>
+            <SprintChipPicker
+              allSprints={allSprints}
+              value={sprintIds}
+              onToggle={(id) => toggleSprintId(sprintIds, setSprintIds, id)}
+            />
             <DialogFooter>
               <Button type="submit">Create milestone</Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// Toggleable chips so a milestone can be linked to multiple sprints.
+function SprintChipPicker({
+  allSprints,
+  value,
+  onToggle,
+}: {
+  allSprints: SprintRef[];
+  value: string[];
+  onToggle: (id: string) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label>Sprints (link to one or many)</Label>
+      {allSprints.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          This project has no sprints yet — create some first to link them.
+        </p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {allSprints.map((s) => {
+            const active = value.includes(s.id);
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => onToggle(s.id)}
+                className={cn(
+                  "px-2.5 py-1 rounded-full text-xs border transition",
+                  active
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card text-foreground border-border hover:bg-accent/30",
+                )}
+              >
+                {s.name}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

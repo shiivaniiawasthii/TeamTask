@@ -1,9 +1,12 @@
 import { EmailClient, EmailMessage } from "@azure/communication-email";
 
-let client: EmailClient | null = null;
-
-function getClient(): EmailClient | null {
-  if (client) return client;
+/**
+ * Eagerly instantiate the Azure Communication Services EmailClient at module
+ * load. This avoids paying construction cost on the first request after a
+ * serverless cold start (every Vercel function invocation that needs to send
+ * email otherwise pays this on the first .beginSend() call).
+ */
+function buildClient(): EmailClient | null {
   const conn = process.env.AZURE_COMM_EMAIL_CONNECTION_STRING;
   if (!conn) {
     console.warn(
@@ -11,21 +14,23 @@ function getClient(): EmailClient | null {
     );
     return null;
   }
-  client = new EmailClient(conn);
-  return client;
+  try {
+    return new EmailClient(conn);
+  } catch (e) {
+    console.error("[mailer] Failed to construct EmailClient:", e);
+    return null;
+  }
 }
 
-/**
- * Build a unique reply-to address for a task.
- * Uses sub-addressing: <local>+task-<id>@<domain>
- */
+// Eager singleton (per Node.js process / serverless function instance).
+const client: EmailClient | null = buildClient();
+
 export function replyToForTask(taskId: string) {
   const local = process.env.EMAIL_DOMAIN_LOCAL ?? "DoNotReply";
   const domain = process.env.EMAIL_DOMAIN ?? "cognifai.in";
   return `${local}+task-${taskId}@${domain}`;
 }
 
-/** Pull a task id back out of an inbound To/Delivered-To/Envelope-To address. */
 export function taskIdFromAddress(addr: string | undefined | null): string | null {
   if (!addr) return null;
   const m = addr.toLowerCase().match(/\+task-([a-z0-9]+)@/);
@@ -41,6 +46,14 @@ function stripHtml(html: string) {
     .trim();
 }
 
+export type SendMailResult =
+  | { ok: true; id: string }
+  | { ok: false; error: string };
+
+/**
+ * Send an email. Returns a typed result instead of throwing so callers can
+ * report meaningful errors to users.
+ */
 export async function sendMail(opts: {
   to: string;
   subject: string;
@@ -48,11 +61,10 @@ export async function sendMail(opts: {
   text?: string;
   replyTo?: string;
   inReplyTo?: string;
-}) {
-  const c = getClient();
-  if (!c) {
-    console.warn("[mailer] Skipping email (no client):", opts.subject);
-    return { id: "skipped" };
+}): Promise<SendMailResult> {
+  if (!client) {
+    console.warn("[mailer] No client configured — skipped:", opts.subject);
+    return { ok: false, error: "Email service not configured on the server." };
   }
   const senderAddress = process.env.EMAIL_FROM ?? "DoNotReply@cognifai.in";
 
@@ -69,7 +81,15 @@ export async function sendMail(opts: {
     replyTo: opts.replyTo ? [{ address: opts.replyTo }] : undefined,
   };
 
-  const poller = await c.beginSend(message);
-  const result = await poller.pollUntilDone();
-  return { id: result.id };
+  try {
+    const poller = await client.beginSend(message);
+    const result = await poller.pollUntilDone();
+    return { ok: true, id: result.id };
+  } catch (e: any) {
+    console.error("[mailer] beginSend failed for", opts.to, ":", e?.message ?? e);
+    return {
+      ok: false,
+      error: e?.message ?? "Failed to send email — please try again.",
+    };
+  }
 }

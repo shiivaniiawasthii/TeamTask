@@ -66,7 +66,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-lg border bg-white p-4">
+        <section className="rounded-lg border bg-card p-4">
           <h2 className="font-semibold mb-3">My open tasks</h2>
           {myTasks.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nothing on your plate. Nice.</p>
@@ -107,7 +107,7 @@ export default async function DashboardPage() {
           )}
         </section>
 
-        <section className="rounded-lg border bg-white p-4">
+        <section className="rounded-lg border bg-card p-4">
           <h2 className="font-semibold mb-3">Projects</h2>
           {projects.length === 0 ? (
             <p className="text-sm text-muted-foreground">
@@ -151,7 +151,7 @@ function Stat({
   highlight?: boolean;
 }) {
   return (
-    <div className="rounded-lg border bg-white p-4">
+    <div className="rounded-lg border bg-card p-4">
       <div className="text-xs uppercase tracking-wider text-muted-foreground">
         {label}
       </div>

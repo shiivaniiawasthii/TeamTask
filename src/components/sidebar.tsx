@@ -18,7 +18,7 @@ export function Sidebar({ projects }: { projects: Project[] }) {
     <aside className="hidden md:flex w-64 shrink-0 flex-col border-r bg-card">
       <div className="px-4 py-4 border-b">
         <Link href="/dashboard">
-          <Logo />
+          <Logo size={120} />
         </Link>
       </div>
       <nav className="flex-1 overflow-y-auto p-3 space-y-1">
@@ -64,7 +64,9 @@ export function Sidebar({ projects }: { projects: Project[] }) {
               />
               <FolderKanban className="h-4 w-4 text-muted-foreground" />
               <span className="truncate">{p.name}</span>
-              <span className="ml-auto text-[10px] text-muted-foreground">{p.key}</span>
+              <span className="ml-auto text-[10px] text-muted-foreground">
+                {p.key}
+              </span>
             </Link>
           );
         })}

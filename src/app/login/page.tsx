@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Logo } from "@/components/logo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,7 +19,11 @@ export default function LoginPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    const res = await signIn("credentials", { email, password, redirect: false });
+    const res = await signIn("credentials", {
+      email,
+      password,
+      redirect: false,
+    });
     setLoading(false);
     if (res?.error) {
       toast.error("Invalid credentials");
@@ -34,13 +39,24 @@ export default function LoginPage() {
         onSubmit={onSubmit}
         className="w-full max-w-sm rounded-lg border bg-card p-6 shadow-sm space-y-4"
       >
-        <div>
-          <h1 className="text-2xl font-semibold">Team Tasks</h1>
-          <p className="text-sm text-muted-foreground">Sign in to your workspace</p>
+        <div className="flex flex-col items-center text-center gap-3">
+          <Logo size={200} showWordmark={false} />
+          <div>
+            <h1 className="text-2xl font-semibold">Welcome back</h1>
+            <p className="text-sm text-muted-foreground">
+              Sign in to plan, assign, and ship work together.
+            </p>
+          </div>
         </div>
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Input
+            id="email"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
         </div>
         <div className="space-y-2">
           <div className="flex items-center justify-between">
@@ -52,7 +68,13 @@ export default function LoginPage() {
               Forgot password?
             </Link>
           </div>
-          <Input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+          <Input
+            id="password"
+            type="password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
         </div>
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? "Signing in..." : "Sign in"}

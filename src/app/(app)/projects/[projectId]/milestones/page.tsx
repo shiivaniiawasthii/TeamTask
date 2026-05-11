@@ -15,10 +15,15 @@ export default async function MilestonesPage({
       milestones: {
         orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }],
         include: {
-          tasks: {
-            select: { id: true, title: true, status: true },
+          tasks: { select: { id: true, title: true, status: true } },
+          sprintLinks: {
+            include: { sprint: { select: { id: true, name: true, status: true } } },
           },
         },
+      },
+      sprints: {
+        orderBy: { startDate: "asc" },
+        select: { id: true, name: true, status: true },
       },
     },
   });
@@ -27,11 +32,13 @@ export default async function MilestonesPage({
   return (
     <MilestonesView
       projectId={project.id}
+      allSprints={project.sprints}
       initialMilestones={project.milestones.map((m) => ({
         ...m,
         dueDate: m.dueDate?.toISOString() ?? null,
         createdAt: m.createdAt.toISOString(),
         updatedAt: m.updatedAt.toISOString(),
+        sprints: m.sprintLinks.map((l) => l.sprint),
       }))}
     />
   );

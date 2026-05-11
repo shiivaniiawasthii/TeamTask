@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
-import { isProjectAdmin, requireUser } from "@/lib/session";
+import { canManageMembers, requireUser } from "@/lib/session";
 import { sendInvitationEmail } from "@/server/email/notifications";
 
 const schema = z.object({
   emails: z.array(z.string().email()).min(1).max(50),
-  role: z.enum(["ADMIN", "MEMBER"]).default("MEMBER"),
+  role: z
+    .enum(["ADMIN", "PROJECT_MANAGER", "LEAD", "MEMBER"])
+    .default("MEMBER"),
 });
 
 const EXPIRY_DAYS = 7;
@@ -17,7 +19,7 @@ export async function GET(
   { params }: { params: { projectId: string } },
 ) {
   const user = await requireUser();
-  if (!(await isProjectAdmin(params.projectId, user.id))) {
+  if (!(await canManageMembers(params.projectId, user.id))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const invitations = await prisma.invitation.findMany({
@@ -33,7 +35,7 @@ export async function POST(
   { params }: { params: { projectId: string } },
 ) {
   const user = await requireUser();
-  if (!(await isProjectAdmin(params.projectId, user.id))) {
+  if (!(await canManageMembers(params.projectId, user.id))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

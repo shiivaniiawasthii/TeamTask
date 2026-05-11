@@ -1,14 +1,27 @@
-export function Logo({ className }: { className?: string }) {
+import Image from "next/image";
+import { cn } from "@/lib/utils";
+
+/**
+ * Brand mark — uses /public/logo.png. Drop in a replacement image at that path
+ * to update everywhere (sidebar, login, favicon source).
+ */
+export function Logo({
+  className,
+  size = 28,
+  showWordmark = true,
+}: {
+  className?: string;
+  size?: number;
+  showWordmark?: boolean;
+}) {
   return (
-    <span className={`flex items-center gap-2 ${className ?? ""}`}>
-      <span
-        className="grid h-7 w-7 place-items-center rounded-md text-white font-bold text-sm shadow-sm bg-primary"
-      >
-        T
-      </span>
-      <span className="text-base font-semibold tracking-tight">
-        Team<span className="text-primary">Tasks</span>
-      </span>
-    </span>
+    <Image
+      src="/logo.png"
+      alt="Cognify"
+      width={size}
+      height={size}
+      className="rounded-md object-contain"
+      priority
+    />
   );
 }
