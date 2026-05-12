@@ -123,7 +123,10 @@ model Task {
   updatedAt   DateTime   @updatedAt
 
   // Notification bookkeeping (reminders trigger off endDate)
-  endReminderSentAt DateTime?
+  // endReminderSentAt   = "24h before due" sent (prevents duplicates)
+  // overdueReminderSentAt = "24h after due" overdue alert sent (prevents duplicates)
+  endReminderSentAt     DateTime?
+  overdueReminderSentAt DateTime?
 
   project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
   assignee  User?      @relation("TaskAssignee", fields: [assigneeId], references: [id])

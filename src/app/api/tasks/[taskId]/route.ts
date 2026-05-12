@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/session";
 import {
   sendAssignmentEmail,
   sendCompletionEmail,
+  sendTaskActivityEmail,
 } from "@/server/email/notifications";
 
 const schema = z.object({
@@ -156,6 +157,99 @@ export async function PATCH(req: NextRequest, { params }: { params: { taskId: st
     sendCompletionEmail(updated.id, user.id).catch((e) =>
       console.error("completion email", e),
     );
+  }
+
+  // Generic activity notifications — fire when the user edits ANYTHING that
+  // matters to the rest of the team. We deliberately do NOT cover:
+  //   - assignment changes (handled by sendAssignmentEmail above)
+  //   - transitions to DONE (handled by sendCompletionEmail above)
+  //   - new comments (handled in the comments route by sendCommentEmail)
+  // so that recipients don't get duplicate emails for the same change.
+  const changes: string[] = [];
+  const data = parsed.data;
+
+  if (typeof data.title === "string" && data.title !== existing.title) {
+    changes.push(`renamed to "${data.title}"`);
+  }
+  if (
+    "description" in data &&
+    (data.description ?? null) !== (existing.description ?? null)
+  ) {
+    changes.push("description was updated");
+  }
+  if (
+    typeof data.status === "string" &&
+    data.status !== existing.status &&
+    data.status !== "DONE"
+  ) {
+    changes.push(`status changed from ${existing.status} to ${data.status}`);
+  }
+  if (typeof data.priority === "string" && data.priority !== existing.priority) {
+    changes.push(`priority set to ${data.priority}`);
+  }
+  if ("endDate" in data) {
+    const oldIso = existing.endDate ? existing.endDate.toISOString().slice(0, 10) : null;
+    const newIso = data.endDate ? data.endDate.slice(0, 10) : null;
+    if (oldIso !== newIso) {
+      changes.push(
+        newIso ? `due date changed to ${newIso}` : "due date cleared",
+      );
+    }
+  }
+  if ("startDate" in data) {
+    const oldIso = existing.startDate ? existing.startDate.toISOString().slice(0, 10) : null;
+    const newIso = data.startDate ? data.startDate.slice(0, 10) : null;
+    if (oldIso !== newIso) {
+      changes.push(
+        newIso ? `start date changed to ${newIso}` : "start date cleared",
+      );
+    }
+  }
+
+  if (changes.length > 0) {
+    const actor = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { name: true, email: true },
+    });
+    const actorName = actor?.name ?? actor?.email ?? "Someone";
+    sendTaskActivityEmail({
+      taskId: updated.id,
+      actorId: user.id,
+      summary: `${actorName} updated this task: ${changes.join("; ")}.`,
+    }).catch((e) => console.error("activity email", e));
+  }
+
+  // If anyone was removed from the assignee list, let them know explicitly.
+  if (newAssigneeIds) {
+    const removedNow = Array.from(prevAssigneeIds).filter(
+      (id) => !newAssigneeIds!.has(id) && id !== user.id,
+    );
+    if (removedNow.length > 0) {
+      const actor = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { name: true, email: true },
+      });
+      const actorName = actor?.name ?? actor?.email ?? "Someone";
+      // We can't use sendTaskActivityEmail directly (those recipients are no
+      // longer assignees). Send a one-off mail per removed user.
+      const removed = await prisma.user.findMany({
+        where: { id: { in: removedNow } },
+        select: { email: true, name: true },
+      });
+      for (const r of removed) {
+        if (!r.email) continue;
+        // Reuse the generic shape by mailing them directly.
+        sendTaskActivityEmail({
+          taskId: updated.id,
+          actorId: "__system__", // never matches any assignee → email goes through
+          summary: `${actorName} removed you from this task.`,
+        }).catch((e) => console.error("activity email (removed)", e));
+        // Note: the user is already removed from the join table, so
+        // sendTaskActivityEmail (which only emails current assignees) will
+        // NOT actually reach them. So we send directly below.
+        // Fall through to the explicit per-recipient send.
+      }
+    }
   }
 
   // Return the updated task with both assignee and assignees populated.

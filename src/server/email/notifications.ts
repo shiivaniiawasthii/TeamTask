@@ -1,7 +1,27 @@
 import { prisma } from "@/lib/prisma";
 import { replyToForTask, sendMail } from "./mailer";
 
-const APP_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+/**
+ * Resolve the canonical app URL for building email links.
+ *
+ * In production, we read NEXTAUTH_URL (e.g. https://app.cognifai.in).
+ * If that env var is missing or wrong, every email link would 404 ("Deployment
+ * Not Found" on Vercel when the URL points to a deleted preview).
+ *
+ * Fallback chain:
+ *   1. NEXTAUTH_URL (explicit, set by us)
+ *   2. APP_URL (allow opt-in override)
+ *   3. https://${VERCEL_URL} (auto-set by Vercel on every deployment)
+ *   4. http://localhost:3000 (dev)
+ */
+function resolveAppUrl(): string {
+  if (process.env.NEXTAUTH_URL) return process.env.NEXTAUTH_URL;
+  if (process.env.APP_URL) return process.env.APP_URL;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return "http://localhost:3000";
+}
+
+const APP_URL = resolveAppUrl();
 
 function taskUrl(projectId: string, taskId: string) {
   return `${APP_URL}/projects/${projectId}/board?task=${taskId}`;
@@ -204,6 +224,112 @@ export async function sendCompletionEmail(taskId: string, completedById: string)
       }),
     ),
   );
+}
+
+/**
+ * Generic per-task activity notification.
+ *
+ * Used for status changes, title/description edits, priority changes, etc. —
+ * any update that's NOT already covered by a dedicated email (assignment,
+ * completion, comment, due reminder).
+ *
+ * Sends to every current assignee EXCEPT the actor (no self-notify).
+ * The `summary` should be a complete, human-readable sentence describing the
+ * change (e.g. "Alice changed the status from TODO to IN_PROGRESS").
+ */
+export async function sendTaskActivityEmail(opts: {
+  taskId: string;
+  actorId: string;
+  summary: string;
+  details?: string;
+}) {
+  const task = await prisma.task.findUnique({
+    where: { id: opts.taskId },
+    include: {
+      project: { select: { id: true, name: true } },
+      assignees: {
+        include: { user: { select: { id: true, email: true, name: true } } },
+      },
+    },
+  });
+  if (!task) return;
+
+  // Only notify other assignees — skip the user who made the change.
+  const recipients = task.assignees
+    .map((a) => a.user)
+    .filter((u) => u.id !== opts.actorId && !!u.email);
+  if (recipients.length === 0) return;
+
+  const url = taskUrl(task.project.id, task.id);
+
+  await Promise.all(
+    recipients.map((r) =>
+      sendMail({
+        to: r.email,
+        subject: `[${task.project.name}] Update: ${task.title}`,
+        replyTo: replyToForTask(task.id),
+        html: `
+          <p>Hi ${r.name ? escapeHtml(r.name) : ""},</p>
+          <p>${escapeHtml(opts.summary)}</p>
+          <p style="font-size:16px;font-weight:600">${escapeHtml(task.title)}</p>
+          ${opts.details ? `<blockquote style="border-left:3px solid #e5e7eb;padding-left:12px;color:#374151">${escapeHtml(opts.details)}</blockquote>` : ""}
+          <p><a href="${url}">View task →</a></p>
+          ${footer(task.id)}
+        `,
+        text: `${opts.summary}\n\n${task.title}\n\n${url}`,
+      }),
+    ),
+  );
+}
+
+/**
+ * Sent when a task is past its due date and the work isn't DONE yet.
+ * Triggered by the cron — fires once per task (marked via overdueReminderSentAt).
+ */
+export async function sendOverdueReminderEmail(taskId: string) {
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: {
+      project: { select: { id: true, name: true } },
+      assignees: {
+        include: { user: { select: { email: true, name: true } } },
+      },
+    },
+  });
+  if (!task || !task.endDate) return;
+
+  const recipients = task.assignees
+    .map((a) => a.user)
+    .filter((u) => !!u.email);
+  if (recipients.length === 0) return;
+
+  const url = taskUrl(task.project.id, task.id);
+  const dueStr = task.endDate.toDateString();
+
+  await Promise.all(
+    recipients.map((r) =>
+      sendMail({
+        to: r.email,
+        subject: `[${task.project.name}] ⚠️ Overdue: ${task.title}`,
+        replyTo: replyToForTask(task.id),
+        html: `
+          <p>Hi ${r.name ? escapeHtml(r.name) : ""},</p>
+          <p>This task is <strong style="color:#b91c1c">overdue</strong>.
+            It was due on <strong>${dueStr}</strong> and is still open.</p>
+          <p style="font-size:16px;font-weight:600">${escapeHtml(task.title)}</p>
+          <p><a href="${url}">Open task →</a></p>
+          ${footer(task.id)}
+        `,
+        text: `Overdue: ${task.title} (was due ${dueStr})\n\n${url}`,
+      }),
+    ),
+  );
+
+  // Mark sent so subsequent cron runs don't resend.
+  await prisma.task.update({
+    where: { id: taskId },
+    data: { overdueReminderSentAt: new Date() },
+  });
 }
 
 export async function sendInvitationEmail(invitationId: string) {
