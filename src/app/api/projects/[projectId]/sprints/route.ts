@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
+import { createNotifications } from "@/server/notifications";
 
 const createSchema = z.object({
   name: z.string().min(1),
@@ -55,5 +56,19 @@ export async function POST(
       status: parsed.data.status,
     },
   });
+
+  // Notify all project members about the new sprint (except the creator).
+  const members = await prisma.projectMember.findMany({
+    where: { projectId: params.projectId },
+    select: { userId: true },
+  });
+  await createNotifications({
+    userIds: members.map((m) => m.userId),
+    actorId: user.id,
+    type: "SPRINT_CREATED",
+    title: `New sprint: ${sprint.name}`,
+    link: `/projects/${params.projectId}/sprints`,
+  });
+
   return NextResponse.json(sprint);
 }

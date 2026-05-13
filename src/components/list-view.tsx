@@ -38,16 +38,25 @@ type Member = { id: string; name: string | null; email: string; image: string | 
 const PRIORITY_RANK: Record<string, number> = { URGENT: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
 const NO_SPRINT = "__nosprint";
 
+type Pagination = {
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+};
+
 export function ListView({
   projectId,
   currentUserId,
   initialTasks,
   members,
+  pagination,
 }: {
   projectId: string;
   currentUserId: string;
   initialTasks: Task[];
   members: Member[];
+  pagination?: Pagination;
 }) {
   const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
@@ -360,6 +369,10 @@ export function ListView({
         </div>
       )}
 
+      {pagination && (
+        <PaginationBar projectId={projectId} pagination={pagination} />
+      )}
+
       <TaskDetailDrawer
         taskId={openTaskId}
         members={members}
@@ -373,6 +386,73 @@ export function ListView({
         onOpenChange={(v) => !v && setTaskDialogSprintId(undefined)}
         defaultSprintId={taskDialogSprintId ?? null}
       />
+    </div>
+  );
+}
+
+// Pagination footer — page size selector + prev/next + total record count.
+// State lives in the URL (?page=&pageSize=), so the server component re-fetches
+// the correct slice on navigation. No client-side data caching needed.
+function PaginationBar({
+  projectId,
+  pagination,
+}: {
+  projectId: string;
+  pagination: Pagination;
+}) {
+  const router = useRouter();
+  const { page, pageSize, totalCount, totalPages } = pagination;
+  const start = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
+  const end = Math.min(page * pageSize, totalCount);
+
+  function go(nextPage: number, nextSize: number = pageSize) {
+    const safePage = Math.min(Math.max(1, nextPage), Math.max(1, totalPages));
+    router.push(
+      `/projects/${projectId}/list?page=${safePage}&pageSize=${nextSize}`,
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-between flex-wrap gap-3 text-sm pt-2">
+      <p className="text-muted-foreground">
+        Showing <span className="font-medium text-foreground">{start}–{end}</span>{" "}
+        of <span className="font-medium text-foreground">{totalCount}</span> tasks
+      </p>
+      <div className="flex items-center gap-3">
+        <label className="flex items-center gap-2 text-muted-foreground">
+          Rows per page
+          <select
+            value={pageSize}
+            onChange={(e) => go(1, Number(e.target.value))}
+            className="border rounded-md bg-card px-2 py-1 text-sm"
+          >
+            {[10, 25, 50].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => go(page - 1)}
+            disabled={page <= 1}
+            className="px-2 py-1 border rounded-md disabled:opacity-40 hover:bg-muted/40"
+          >
+            Prev
+          </button>
+          <span className="px-2 text-muted-foreground">
+            Page {page} of {totalPages}
+          </span>
+          <button
+            onClick={() => go(page + 1)}
+            disabled={page >= totalPages}
+            className="px-2 py-1 border rounded-md disabled:opacity-40 hover:bg-muted/40"
+          >
+            Next
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

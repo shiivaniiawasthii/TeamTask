@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { toast } from "sonner";
 import { Check, ChevronDown, X } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn, initials } from "@/lib/utils";
@@ -44,8 +45,19 @@ export function AssigneeMultiSelect({
   });
 
   function toggle(id: string) {
-    if (value.includes(id)) onChange(value.filter((v) => v !== id));
-    else onChange([...value, id]);
+    if (value.includes(id)) {
+      onChange(value.filter((v) => v !== id));
+      return;
+    }
+    // Surface a clear warning if the member we're about to assign has no
+    // registered email — they won't receive any notification emails.
+    const member = members.find((m) => m.id === id);
+    if (member && !member.email) {
+      toast.error(
+        `User email not found. ${member.name ?? "This member"} won't receive email notifications.`,
+      );
+    }
+    onChange([...value, id]);
   }
 
   function remove(id: string) {

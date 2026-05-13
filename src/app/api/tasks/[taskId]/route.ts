@@ -7,6 +7,7 @@ import {
   sendCompletionEmail,
   sendTaskActivityEmail,
 } from "@/server/email/notifications";
+import { createNotifications } from "@/server/notifications";
 
 const schema = z.object({
   title: z.string().min(1).optional(),
@@ -149,14 +150,32 @@ export async function PATCH(req: NextRequest, { params }: { params: { taskId: st
           project: project ?? null,
         }).catch((e) => console.error("assignment email", e));
       }
+
+      // In-app notification for each newly assigned user.
+      await createNotifications({
+        userIds: toAdd,
+        actorId: user.id,
+        type: "ASSIGNED",
+        title: `Assigned to "${updated.title}"`,
+        message: project?.name ? `In ${project.name}` : undefined,
+        link: `/projects/${updated.projectId}/board?task=${updated.id}`,
+      });
     }
   }
 
-  // Completion email when status flips to DONE.
+  // Completion: email + in-app notification for everyone except the actor.
   if (!wasDone && becomingDone) {
     sendCompletionEmail(updated.id, user.id).catch((e) =>
       console.error("completion email", e),
     );
+    const recipients = existing.assignees.map((a: any) => a.userId);
+    await createNotifications({
+      userIds: recipients,
+      actorId: user.id,
+      type: "COMPLETED",
+      title: `Completed: "${updated.title}"`,
+      link: `/projects/${updated.projectId}/board?task=${updated.id}`,
+    });
   }
 
   // Generic activity notifications — fire when the user edits ANYTHING that
@@ -217,6 +236,25 @@ export async function PATCH(req: NextRequest, { params }: { params: { taskId: st
       actorId: user.id,
       summary: `${actorName} updated this task: ${changes.join("; ")}.`,
     }).catch((e) => console.error("activity email", e));
+
+    // In-app notification — also fires for any status / date / title / etc.
+    // change so the bell reflects every meaningful task edit.
+    const isStatusChange = changes.some((c) => c.startsWith("status changed"));
+    const isDueDateChange = changes.some((c) => c.startsWith("due date"));
+    const type = isStatusChange
+      ? "STATUS_CHANGE"
+      : isDueDateChange
+        ? "DUE_DATE_CHANGED"
+        : "TASK_EDITED";
+    const currentAssignees = existing.assignees.map((a: any) => a.userId);
+    await createNotifications({
+      userIds: currentAssignees,
+      actorId: user.id,
+      type,
+      title: `Updated: "${updated.title}"`,
+      message: changes.join("; "),
+      link: `/projects/${updated.projectId}/board?task=${updated.id}`,
+    });
   }
 
   // If anyone was removed from the assignee list, let them know explicitly.
