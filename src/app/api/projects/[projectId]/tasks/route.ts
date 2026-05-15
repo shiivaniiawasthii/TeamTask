@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { sendAssignmentEmail } from "@/server/email/notifications";
+import { createNotifications } from "@/server/notifications";
 
 const schema = z.object({
   title: z.string().min(1),
@@ -79,6 +80,20 @@ export async function POST(
       assignee: { email: a.user.email, name: a.user.name },
       project: { name: task.project.name },
     }).catch((e) => console.error("assignment email", e));
+  }
+
+  // In-app notification for each assignee. Mirrors what the PATCH route does
+  // when assignees are added later — without this, freshly-created tasks
+  // would email the assignee but leave their notification bell empty.
+  if (task.assignees.length > 0) {
+    await createNotifications({
+      userIds: task.assignees.map((a) => a.userId),
+      actorId: user.id,
+      type: "ASSIGNED",
+      title: `Assigned to "${task.title}"`,
+      message: `In ${task.project.name}`,
+      link: `/projects/${task.projectId}/board?task=${task.id}`,
+    }).catch((e) => console.error("task created notification", e));
   }
 
   return NextResponse.json(task);

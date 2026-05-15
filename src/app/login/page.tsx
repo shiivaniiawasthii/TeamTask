@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/logo";
+import { Bee, BeeCluster } from "@/components/bee";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -34,13 +35,22 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background p-4">
+    <main className="relative flex min-h-screen items-center justify-center bg-background p-4 overflow-hidden">
+      {/* Decorative bee cluster — pure CSS, no JS runtime. */}
+      <BeeCluster className="absolute inset-0" />
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-sm rounded-lg border bg-card p-6 shadow-sm space-y-4"
+        className="relative w-full max-w-sm rounded-lg border bg-card p-6 shadow-sm space-y-4"
       >
         <div className="flex flex-col items-center text-center gap-3">
           <Logo size={200} showWordmark={false} />
+          <div className="flex items-center justify-center gap-2">
+            <Bee size={28} />
+            <span className="text-sm font-semibold tracking-wide text-foreground">
+              WorkHive
+            </span>
+            <span className="text-xs text-muted-foreground">· by CognifAI</span>
+          </div>
           <div>
             <h1 className="text-2xl font-semibold">Welcome back</h1>
             <p className="text-sm text-muted-foreground">

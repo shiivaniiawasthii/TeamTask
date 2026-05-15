@@ -398,6 +398,48 @@ export async function sendInvitationEmail(
   });
 }
 
+export async function sendInvitationAcceptedEmail(
+  projectId: string,
+  accepterName: string,
+  accepterEmail: string,
+) {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { name: true },
+  });
+  if (!project) return;
+
+  const admins = await prisma.projectMember.findMany({
+    where: {
+      projectId,
+      role: { in: ["ADMIN", "PROJECT_MANAGER"] },
+    },
+    include: { user: { select: { email: true, name: true } } },
+  });
+
+  const memberUrl = `${APP_URL}/projects/${projectId}/members`;
+  const adminEmails = admins
+    .map((m) => m.user.email)
+    .filter(Boolean) as string[];
+
+  if (adminEmails.length === 0) return;
+
+  await Promise.all(
+    adminEmails.map((email) =>
+      sendMail({
+        to: email,
+        subject: `${accepterName} joined ${project.name}`,
+        html: `
+          <p>Hi,</p>
+          <p><strong>${escapeHtml(accepterName)}</strong> (${escapeHtml(accepterEmail)}) accepted the invitation to join <strong>${escapeHtml(project.name)}</strong>.</p>
+          <p><a href="${memberUrl}" style="display:inline-block;background:#7c2d77;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none">View members →</a></p>
+        `,
+        text: `${accepterName} (${accepterEmail}) joined ${project.name}.\n\nView members: ${memberUrl}`,
+      }),
+    ),
+  );
+}
+
 function escapeHtml(s: string) {
   return s
     .replace(/&/g, "&amp;")

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { isProjectAdmin, requireUser } from "@/lib/session";
 import { MembersView } from "@/components/members-view";
+import { reconcilePendingInvitations } from "@/server/invitations";
 
 export default async function MembersPage({
   params,
@@ -9,6 +10,9 @@ export default async function MembersPage({
   params: { projectId: string };
 }) {
   const user = await requireUser();
+  // Reconcile FIRST so the project query below reads the corrected
+  // invitation rows in the same transaction window.
+  await reconcilePendingInvitations(params.projectId);
   const project = await prisma.project.findFirst({
     where: { id: params.projectId, members: { some: { userId: user.id } } },
     include: {

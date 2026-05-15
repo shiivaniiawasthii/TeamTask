@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { createNotifications } from "@/server/notifications";
+import { sendInvitationAcceptedEmail } from "@/server/email/notifications";
 
 export async function GET(
   _req: NextRequest,
@@ -46,7 +47,10 @@ export async function POST(
   });
   if (!inv) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (inv.status !== "PENDING") {
-    return NextResponse.json({ error: "Invitation no longer valid" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invitation no longer valid" },
+      { status: 400 },
+    );
   }
   if (inv.expiresAt < new Date()) {
     await prisma.invitation.update({
@@ -75,28 +79,64 @@ export async function POST(
     data: { status: "ACCEPTED", acceptedAt: new Date() },
   });
 
-  // Tell project admins that the invitee accepted — drives the real-time
-  // "remove from pending / add to members list" experience: when the admin's
-  // bell polls, they see the notification and a click takes them to /members.
-  const admins = await prisma.projectMember.findMany({
-    where: {
-      projectId: inv.projectId,
-      role: { in: ["ADMIN", "PROJECT_MANAGER"] },
-    },
-    select: { userId: true },
-  });
-  const accepter = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { name: true, email: true },
-  });
+  // Look up everyone we need to notify in one shot.
+  const [admins, accepter, projectMeta] = await Promise.all([
+    prisma.projectMember.findMany({
+      where: {
+        projectId: inv.projectId,
+        role: { in: ["ADMIN", "PROJECT_MANAGER"] },
+      },
+      select: { userId: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: user.id },
+      select: { name: true, email: true },
+    }),
+    prisma.project.findUnique({
+      where: { id: inv.projectId },
+      select: { name: true },
+    }),
+  ]);
+
   const accepterName = accepter?.name ?? accepter?.email ?? "Someone";
+  const projectName = projectMeta?.name ?? "the project";
+
+  // 1) Admins + project managers: "Alice joined the project"
   await createNotifications({
     userIds: admins.map((m) => m.userId),
     actorId: user.id,
-    type: "ASSIGNED",
-    title: `${accepterName} joined the project`,
+    type: "INVITED",
+    title: `${accepterName} joined ${projectName}`,
     link: `/projects/${inv.projectId}/members`,
   });
+
+  // 2) The original inviter (if not already covered as admin/PM): "Alice
+  // accepted your invitation" — gives the actual sender direct feedback.
+  await createNotifications({
+    userIds: [inv.invitedById],
+    actorId: user.id,
+    type: "INVITED",
+    title: `${accepterName} accepted your invitation`,
+    message: `To ${projectName}`,
+    link: `/projects/${inv.projectId}/members`,
+  });
+
+  // 3) The accepter themselves: welcome ping in their bell. Confirms the
+  // accept worked and gives them a one-click path into the project.
+  await createNotifications({
+    userIds: [user.id],
+    type: "INVITED",
+    title: `Welcome to ${projectName}`,
+    message: "You're now a member. Click to open the board.",
+    link: `/projects/${inv.projectId}/board`,
+  });
+
+  // Email admins (existing behaviour).
+  sendInvitationAcceptedEmail(
+    inv.projectId,
+    accepterName,
+    accepter?.email ?? inv.email,
+  ).catch((e) => console.error("invitation accepted email", e));
 
   return NextResponse.json({ ok: true, projectId: inv.projectId });
 }

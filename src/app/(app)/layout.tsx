@@ -11,9 +11,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   // Force password change on first login. We do this here (server layout)
   // rather than via middleware so we have a real DB session in the request.
+  // While we're at it, pull `role` too so the TopBar can display it without
+  // a second roundtrip.
   const account = await prisma.user.findUnique({
     where: { id: user.id },
-    select: { mustChangePassword: true },
+    select: { mustChangePassword: true, role: true },
   });
   if (account?.mustChangePassword) {
     redirect("/change-password");
@@ -31,7 +33,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <RefreshOnFocus />
       <Sidebar projects={projects} />
       <div className="flex-1 flex flex-col min-w-0">
-        <TopBar user={user} />
+        <TopBar user={{ ...user, role: account?.role ?? "MEMBER" }} />
         <div className="flex-1 min-h-0">{children}</div>
       </div>
     </div>

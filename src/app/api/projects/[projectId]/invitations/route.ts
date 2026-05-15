@@ -7,6 +7,7 @@ import { canManageMembers, requireUser } from "@/lib/session";
 import { sendInvitationEmail } from "@/server/email/notifications";
 import { generateTempPassword } from "@/lib/email-policy";
 import { createNotifications } from "@/server/notifications";
+import { reconcilePendingInvitations } from "@/server/invitations";
 
 const schema = z.object({
   emails: z.array(z.string().email()).min(1).max(50),
@@ -30,6 +31,10 @@ export async function GET(
   if (!(await canManageMembers(params.projectId, user.id))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+  // Sweep stale-PENDING rows for users who are already members. The user
+  // typically logs in with the temp password and never visits the accept URL,
+  // so the invite would otherwise stay PENDING forever.
+  await reconcilePendingInvitations(params.projectId);
   const invitations = await prisma.invitation.findMany({
     where: { projectId: params.projectId, status: "PENDING" },
     include: { invitedBy: { select: { name: true, email: true } } },

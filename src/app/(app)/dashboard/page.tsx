@@ -2,8 +2,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { cn, formatDate, initials, priorityColor, statusLabel } from "@/lib/utils";
+import { cn, formatDate, priorityColor, statusLabel } from "@/lib/utils";
+import { Bee } from "@/components/bee";
 
 export default async function DashboardPage() {
   const user = await requireUser();
@@ -48,11 +48,17 @@ export default async function DashboardPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">
-          Welcome back{user.name ? `, ${user.name.split(" ")[0]}` : ""}.
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold flex items-center gap-2">
+            Dashboard
+            <Bee size={28} />
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Welcome back{user.name ? `, ${user.name.split(" ")[0]}` : ""} — your
+            hive is humming.
+          </p>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -69,7 +75,12 @@ export default async function DashboardPage() {
         <section className="rounded-lg border bg-card p-4">
           <h2 className="font-semibold mb-3">My open tasks</h2>
           {myTasks.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nothing on your plate. Nice.</p>
+            <div className="flex flex-col items-center gap-2 py-8 text-center">
+              <Bee size={56} floating />
+              <p className="text-sm text-muted-foreground">
+                Nothing on your plate. Nice.
+              </p>
+            </div>
           ) : (
             <ul className="divide-y">
               {myTasks.map((t) => {
@@ -110,9 +121,12 @@ export default async function DashboardPage() {
         <section className="rounded-lg border bg-card p-4">
           <h2 className="font-semibold mb-3">Projects</h2>
           {projects.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No projects yet. Create one from the sidebar.
-            </p>
+            <div className="flex flex-col items-center gap-2 py-8 text-center">
+              <Bee size={48} floating />
+              <p className="text-sm text-muted-foreground">
+                No projects yet. Create one from the sidebar to start the hive.
+              </p>
+            </div>
           ) : (
             <ul className="divide-y">
               {projects.map((p) => (
