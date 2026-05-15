@@ -23,7 +23,8 @@ export async function createNotifications(opts: {
     | "DUE_DATE_CHANGED"
     | "SPRINT_CREATED"
     | "SPRINT_UPDATED"
-    | "COMPLETED";
+    | "COMPLETED"
+    | "INVITED";
   title: string;
   message?: string;
   link: string;

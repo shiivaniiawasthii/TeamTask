@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { canManageMembers, requireUser } from "@/lib/session";
 import { sendInvitationEmail } from "@/server/email/notifications";
 import { generateTempPassword } from "@/lib/email-policy";
+import { createNotifications } from "@/server/notifications";
 
 /**
  * Resend a pending invitation.
@@ -82,6 +83,23 @@ export async function POST(
   await sendInvitationEmail(inv.id, tempPassword).catch((e) =>
     console.error("invite email (resend)", e),
   );
+
+  // In-app notification for the invitee, so the bell lights up even if the
+  // email was missed.
+  if (userRow) {
+    const project = await prisma.project.findUnique({
+      where: { id: inv.projectId },
+      select: { name: true },
+    });
+    await createNotifications({
+      userIds: [userRow.id],
+      actorId: user.id,
+      type: "INVITED",
+      title: `Reminder: invitation to ${project?.name ?? "a project"}`,
+      message: "Check your email to accept and set a password.",
+      link: `/projects/${inv.projectId}/board`,
+    });
+  }
 
   return NextResponse.json({ ok: true });
 }

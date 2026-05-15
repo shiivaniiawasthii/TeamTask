@@ -4,9 +4,15 @@ import { prisma } from "@/lib/prisma";
 import { canManageMembers, requireUser } from "@/lib/session";
 import { createNotifications } from "@/server/notifications";
 
-const patchSchema = z.object({
-  role: z.enum(["ADMIN", "PROJECT_MANAGER", "LEAD", "MEMBER"]),
-});
+const patchSchema = z
+  .object({
+    role: z.enum(["ADMIN", "PROJECT_MANAGER", "LEAD", "MEMBER"]).optional(),
+    // ISO date string or null. null clears expiry (lifetime access).
+    expiresAt: z.union([z.string().datetime(), z.null()]).optional(),
+  })
+  .refine((d) => d.role !== undefined || d.expiresAt !== undefined, {
+    message: "Provide role or expiresAt",
+  });
 
 async function adminCount(projectId: string) {
   return prisma.projectMember.count({
@@ -33,7 +39,11 @@ export async function PATCH(
   });
   if (!target) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  if (target.role === "ADMIN" && parsed.data.role !== "ADMIN") {
+  if (
+    target.role === "ADMIN" &&
+    parsed.data.role !== undefined &&
+    parsed.data.role !== "ADMIN"
+  ) {
     if ((await adminCount(params.projectId)) <= 1) {
       return NextResponse.json(
         { error: "Cannot demote the last admin" },
@@ -42,9 +52,29 @@ export async function PATCH(
     }
   }
 
+  // Build update payload from whichever fields the caller sent.
+  const updateData: { role?: string; expiresAt?: Date | null } = {};
+  if (parsed.data.role !== undefined) updateData.role = parsed.data.role;
+  if (parsed.data.expiresAt !== undefined) {
+    updateData.expiresAt = parsed.data.expiresAt
+      ? new Date(parsed.data.expiresAt)
+      : null;
+    // Enforce min 30 days from now when extending (admin can still set null
+    // for lifetime, which bypasses the floor).
+    if (
+      updateData.expiresAt &&
+      updateData.expiresAt.getTime() - Date.now() < 30 * 24 * 60 * 60 * 1000
+    ) {
+      return NextResponse.json(
+        { error: "Access expiry must be at least 30 days from now" },
+        { status: 400 },
+      );
+    }
+  }
+
   const updated = await prisma.projectMember.update({
     where: { projectId_userId: { projectId: params.projectId, userId: params.userId } },
-    data: { role: parsed.data.role },
+    data: updateData,
   });
   return NextResponse.json(updated);
 }

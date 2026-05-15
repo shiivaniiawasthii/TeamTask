@@ -42,6 +42,7 @@ export default async function MembersPage({
         image: m.user.image,
         role: m.role,
         joinedAt: m.createdAt.toISOString(),
+        expiresAt: m.expiresAt ? m.expiresAt.toISOString() : null,
       }))}
       invitations={project.invitations.map((i) => ({
         id: i.id,

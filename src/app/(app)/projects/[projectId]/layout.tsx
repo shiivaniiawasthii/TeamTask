@@ -12,8 +12,18 @@ export default async function ProjectLayout({
   params: { projectId: string };
 }) {
   const user = await requireUser();
+  // Gate on membership AND expiry. expiresAt = null means lifetime access.
+  // Any value in the past blocks the user as if they weren't a member.
   const project = await prisma.project.findFirst({
-    where: { id: params.projectId, members: { some: { userId: user.id } } },
+    where: {
+      id: params.projectId,
+      members: {
+        some: {
+          userId: user.id,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
+      },
+    },
   });
   if (!project) notFound();
 
