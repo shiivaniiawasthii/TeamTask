@@ -146,6 +146,7 @@ export function SprintsView({
       body: JSON.stringify({ name, goal: goal || undefined, startDate, endDate, status }),
     });
     if (!res.ok) return toast.error("Failed to create sprint");
+    toast.success(`Sprint "${name}" created`);
     const created = await res.json();
     setSprints([...sprints, { ...created, tasks: [] }]);
     setOpenSprintDialog(false);

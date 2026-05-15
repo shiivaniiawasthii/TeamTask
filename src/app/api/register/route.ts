@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { emailDomainError, isAllowedEmail } from "@/lib/email-policy";
 
 const schema = z.object({
   email: z.string().email(),
@@ -18,6 +19,17 @@ export async function POST(req: NextRequest) {
   }
   const { email, name, password, inviteToken } = parsed.data;
   const lowered = email.toLowerCase();
+
+  // Domain lockdown: open registration is restricted to the workspace domain.
+  // Invite-token flow is allowed even for other domains? No — invites already
+  // refuse off-domain emails, so by the time we have a valid token the email
+  // is guaranteed allowed. This check covers the open signup path.
+  if (!isAllowedEmail(lowered)) {
+    return NextResponse.json(
+      { error: emailDomainError() },
+      { status: 400 },
+    );
+  }
 
   // Validate the invite token up front (if provided).
   let invitation: Awaited<ReturnType<typeof prisma.invitation.findUnique>> = null;

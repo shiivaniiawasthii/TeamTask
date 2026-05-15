@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { UserPlus, Trash2, Mail, Shield } from "lucide-react";
+import { UserPlus, Trash2, Mail, Shield, Send } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -154,6 +154,21 @@ export function MembersView({
       method: "DELETE",
     });
     if (!res.ok) return toast.error("Failed");
+    toast.success("Invitation cancelled");
+    router.refresh();
+  }
+
+  async function resendInvite(id: string, email: string) {
+    const res = await fetch(
+      `/api/projects/${projectId}/invitations/${id}/resend`,
+      { method: "POST" },
+    );
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      toast.error(j.error ?? "Failed to resend");
+      return;
+    }
+    toast.success(`Invitation re-sent to ${email}`);
     router.refresh();
   }
 
@@ -274,13 +289,24 @@ export function MembersView({
                       {formatDate(i.expiresAt)}
                     </td>
                     <td className="px-3 py-2">
-                      <button
-                        onClick={() => cancelInvite(i.id)}
-                        className="text-muted-foreground hover:text-destructive p-1"
-                        aria-label="Cancel invitation"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => resendInvite(i.id, i.email)}
+                          className="text-muted-foreground hover:text-foreground p-1"
+                          aria-label="Resend invitation"
+                          title="Resend invitation"
+                        >
+                          <Send className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => cancelInvite(i.id)}
+                          className="text-muted-foreground hover:text-destructive p-1"
+                          aria-label="Cancel invitation"
+                          title="Cancel invitation"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

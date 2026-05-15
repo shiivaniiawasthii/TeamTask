@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { canManageMembers, requireUser } from "@/lib/session";
+import { createNotifications } from "@/server/notifications";
 
 const patchSchema = z.object({
   role: z.enum(["ADMIN", "PROJECT_MANAGER", "LEAD", "MEMBER"]),
@@ -71,5 +72,21 @@ export async function DELETE(
   await prisma.projectMember.delete({
     where: { projectId_userId: { projectId: params.projectId, userId: params.userId } },
   });
+
+  // Notify the removed user. Link points to /dashboard since they no longer
+  // have access to the project.
+  const project = await prisma.project.findUnique({
+    where: { id: params.projectId },
+    select: { name: true },
+  });
+  await createNotifications({
+    userIds: [params.userId],
+    actorId: user.id,
+    type: "UNASSIGNED",
+    title: `You were removed from ${project?.name ?? "a project"}`,
+    message: "You no longer have access to this project.",
+    link: "/dashboard",
+  });
+
   return NextResponse.json({ ok: true });
 }

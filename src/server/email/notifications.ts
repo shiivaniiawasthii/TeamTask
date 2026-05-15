@@ -76,7 +76,11 @@ export async function sendAssignmentEmail(task: {
   });
 }
 
-export async function sendCommentEmail(taskId: string, authorId: string, body: string) {
+export async function sendCommentEmail(
+  taskId: string,
+  authorId: string,
+  body: string,
+) {
   const task = await prisma.task.findUnique({
     where: { id: taskId },
     include: {
@@ -88,8 +92,10 @@ export async function sendCommentEmail(taskId: string, authorId: string, body: s
   if (!task) return;
 
   const recipients = new Set<string>();
-  if (task.assignee && task.assignee.id !== authorId) recipients.add(task.assignee.email);
-  if (task.creator && task.creator.id !== authorId) recipients.add(task.creator.email);
+  if (task.assignee && task.assignee.id !== authorId)
+    recipients.add(task.assignee.email);
+  if (task.creator && task.creator.id !== authorId)
+    recipients.add(task.creator.email);
 
   if (recipients.size === 0) return;
 
@@ -172,7 +178,10 @@ export async function sendPasswordResetEmail(
   });
 }
 
-export async function sendCompletionEmail(taskId: string, completedById: string) {
+export async function sendCompletionEmail(
+  taskId: string,
+  completedById: string,
+) {
   const task = await prisma.task.findUnique({
     where: { id: taskId },
     include: {
@@ -298,9 +307,7 @@ export async function sendOverdueReminderEmail(taskId: string) {
   });
   if (!task || !task.endDate) return;
 
-  const recipients = task.assignees
-    .map((a) => a.user)
-    .filter((u) => !!u.email);
+  const recipients = task.assignees.map((a) => a.user).filter((u) => !!u.email);
   if (recipients.length === 0) return;
 
   const url = taskUrl(task.project.id, task.id);
@@ -332,7 +339,10 @@ export async function sendOverdueReminderEmail(taskId: string) {
   });
 }
 
-export async function sendInvitationEmail(invitationId: string) {
+export async function sendInvitationEmail(
+  invitationId: string,
+  tempPassword?: string,
+) {
   const inv = await prisma.invitation.findUnique({
     where: { id: invitationId },
     include: {
@@ -341,8 +351,31 @@ export async function sendInvitationEmail(invitationId: string) {
     },
   });
   if (!inv) return;
-  const url = `${APP_URL}/accept-invite/${inv.token}`;
+  const acceptUrl = `${APP_URL}/accept-invite/${inv.token}`;
+  const loginUrl = `${APP_URL}/login`;
   const inviterName = inv.invitedBy.name ?? inv.invitedBy.email;
+
+  // If we generated a temp password for a new user, show their credentials
+  // and direct them to sign in (they'll be forced to change the password).
+  // If they're an existing user, just send the accept link.
+  const credentialsBlock = tempPassword
+    ? `
+      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:12px;margin:16px 0">
+        <p style="margin:0 0 6px;font-size:13px;color:#6b7280">Your temporary credentials:</p>
+        <p style="margin:0;font-family:monospace;font-size:14px">
+          Email: <strong>${escapeHtml(inv.email)}</strong><br/>
+          Password: <strong>${escapeHtml(tempPassword)}</strong>
+        </p>
+        <p style="margin:8px 0 0;font-size:12px;color:#6b7280">
+          You'll be asked to set a new password on first sign-in.
+        </p>
+      </div>
+    `
+    : "";
+
+  const primaryUrl = tempPassword ? loginUrl : acceptUrl;
+  const buttonLabel = tempPassword ? "Sign in →" : "Accept invitation →";
+
   await sendMail({
     to: inv.email,
     subject: `${inviterName} invited you to ${inv.project.name}`,
@@ -350,12 +383,18 @@ export async function sendInvitationEmail(invitationId: string) {
       <p>Hi,</p>
       <p><strong>${escapeHtml(inviterName)}</strong> invited you to join
         <strong>${escapeHtml(inv.project.name)}</strong> as
-        <strong>${inv.role}</strong> on Team Tasks.</p>
-      <p><a href="${url}" style="display:inline-block;background:#6366f1;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none">Accept invitation →</a></p>
+        <strong>${inv.role}</strong> on CognifAI.</p>
+      ${credentialsBlock}
+      <p><a href="${primaryUrl}" style="display:inline-block;background:#7c2d77;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none">${buttonLabel}</a></p>
       <p style="font-size:12px;color:#6b7280">This invitation expires on
-        ${inv.expiresAt.toDateString()}. Or paste this link into your browser:<br/>${url}</p>
+        ${inv.expiresAt.toDateString()}. Or paste this link into your browser:<br/>${primaryUrl}</p>
     `,
-    text: `${inviterName} invited you to join "${inv.project.name}" as ${inv.role}.\n\nAccept: ${url}\n\nExpires ${inv.expiresAt.toDateString()}.`,
+    text:
+      `${inviterName} invited you to join "${inv.project.name}" as ${inv.role}.\n\n` +
+      (tempPassword
+        ? `Temporary credentials:\nEmail: ${inv.email}\nPassword: ${tempPassword}\n\nSign in: ${loginUrl}\n\n`
+        : `Accept: ${acceptUrl}\n\n`) +
+      `Expires ${inv.expiresAt.toDateString()}.`,
   });
 }
 

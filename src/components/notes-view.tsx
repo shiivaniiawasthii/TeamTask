@@ -52,6 +52,7 @@ export function NotesView({
       body: JSON.stringify({ title, body }),
     });
     if (!res.ok) return toast.error("Failed to create note");
+    toast.success(`Note "${title}" created`);
     const created = await res.json();
     setNotes([created, ...notes]);
     setOpen(false);

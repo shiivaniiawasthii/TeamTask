@@ -42,6 +42,7 @@ export function CreateProjectDialog({
       return;
     }
     const project = await res.json();
+    toast.success(`Project "${project.name}" created`);
     onOpenChange(false);
     setName("");
     setKey("");

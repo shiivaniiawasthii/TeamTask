@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import crypto from "crypto";
+import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { canManageMembers, requireUser } from "@/lib/session";
 import { sendInvitationEmail } from "@/server/email/notifications";
+import { generateTempPassword } from "@/lib/email-policy";
 
 const schema = z.object({
   emails: z.array(z.string().email()).min(1).max(50),
@@ -54,11 +56,39 @@ export async function POST(
   for (const rawEmail of parsed.data.emails) {
     const email = rawEmail.toLowerCase().trim();
 
-    // Find or create the user. If they don't exist, create a stub with no password.
+    // NOTE: per policy, invites are allowed to ANY email domain. Only
+    // self-registration is locked to @cognifai.in. So we do NOT check
+    // isAllowedEmail here — the sender's permission to invite was already
+    // validated via canManageMembers above.
+
+    // Find or create the user. New users get a system-generated temp password
+    // (the email contains it). They'll be forced to change it on first login.
+    //
+    // Re-invite case: if a user already exists but hasn't activated yet
+    // (mustChangePassword still true — e.g. they missed the first email,
+    // or were removed and re-invited), rotate their temp password so the
+    // new email has working credentials.
     let userRow = await prisma.user.findUnique({ where: { email } });
+    let tempPassword: string | null = null;
     if (!userRow) {
+      tempPassword = generateTempPassword();
+      const passwordHash = await bcrypt.hash(tempPassword, 10);
       userRow = await prisma.user.create({
-        data: { email, passwordHash: null, name: null },
+        data: {
+          email,
+          passwordHash,
+          name: null,
+          mustChangePassword: true,
+        },
+      });
+    } else if (userRow.mustChangePassword) {
+      // Existing stub user who never activated — rotate creds so the email
+      // we're about to send actually works.
+      tempPassword = generateTempPassword();
+      const passwordHash = await bcrypt.hash(tempPassword, 10);
+      await prisma.user.update({
+        where: { id: userRow.id },
+        data: { passwordHash },
       });
     }
 
@@ -105,7 +135,7 @@ export async function POST(
       invitationId = inv.id;
     }
 
-    sendInvitationEmail(invitationId).catch((e) =>
+    sendInvitationEmail(invitationId, tempPassword ?? undefined).catch((e) =>
       console.error("invite email", e),
     );
     created.push({ email, status: "invited" });

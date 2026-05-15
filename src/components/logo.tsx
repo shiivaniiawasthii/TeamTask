@@ -17,7 +17,7 @@ export function Logo({
   return (
     <Image
       src="/logo.png"
-      alt="Cognify"
+      alt="CognifAI"
       width={size}
       height={size}
       className="rounded-md object-contain"

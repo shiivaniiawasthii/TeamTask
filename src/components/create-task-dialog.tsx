@@ -90,6 +90,7 @@ export function CreateTaskDialog({
       toast.error("Failed to create task");
       return;
     }
+    toast.success(`Task "${title}" created`);
     onOpenChange(false);
     setTitle("");
     setDescription("");

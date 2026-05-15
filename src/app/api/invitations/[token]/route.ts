@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
+import { createNotifications } from "@/server/notifications";
 
 export async function GET(
   _req: NextRequest,
@@ -72,6 +73,29 @@ export async function POST(
   await prisma.invitation.update({
     where: { id: inv.id },
     data: { status: "ACCEPTED", acceptedAt: new Date() },
+  });
+
+  // Tell project admins that the invitee accepted — drives the real-time
+  // "remove from pending / add to members list" experience: when the admin's
+  // bell polls, they see the notification and a click takes them to /members.
+  const admins = await prisma.projectMember.findMany({
+    where: {
+      projectId: inv.projectId,
+      role: { in: ["ADMIN", "PROJECT_MANAGER"] },
+    },
+    select: { userId: true },
+  });
+  const accepter = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { name: true, email: true },
+  });
+  const accepterName = accepter?.name ?? accepter?.email ?? "Someone";
+  await createNotifications({
+    userIds: admins.map((m) => m.userId),
+    actorId: user.id,
+    type: "ASSIGNED",
+    title: `${accepterName} joined the project`,
+    link: `/projects/${inv.projectId}/members`,
   });
 
   return NextResponse.json({ ok: true, projectId: inv.projectId });

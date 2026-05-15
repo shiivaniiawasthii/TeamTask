@@ -16,7 +16,9 @@ type Notification = {
   createdAt: string;
 };
 
-const POLL_INTERVAL_MS = 30_000;
+// 10s feels near-real-time without WebSockets. Each poll is ~50ms server-side
+// (a single indexed query) so the cost is negligible.
+const POLL_INTERVAL_MS = 10_000;
 
 export function NotificationBell() {
   const router = useRouter();
@@ -38,11 +40,17 @@ export function NotificationBell() {
     }
   }
 
-  // Poll for new notifications every 30s.
+  // Poll for new notifications every 10s + refresh on focus so the moment
+  // a user switches back to this tab, the bell is up-to-date.
   useEffect(() => {
     refresh();
     const id = setInterval(refresh, POLL_INTERVAL_MS);
-    return () => clearInterval(id);
+    const onFocus = () => refresh();
+    window.addEventListener("focus", onFocus);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener("focus", onFocus);
+    };
   }, []);
 
   // Close dropdown when clicking outside.

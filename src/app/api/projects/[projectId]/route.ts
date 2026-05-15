@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { canManageMembers, isProjectAdmin, requireUser } from "@/lib/session";
+import { createNotifications } from "@/server/notifications";
 
 const patchSchema = z.object({
   name: z.string().min(1).optional(),
@@ -53,6 +54,30 @@ export async function DELETE(
   if (!(await isProjectAdmin(params.projectId, user.id))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+
+  // Capture member list and project name BEFORE delete (cascade wipes them).
+  const project = await prisma.project.findUnique({
+    where: { id: params.projectId },
+    select: {
+      name: true,
+      members: { select: { userId: true } },
+    },
+  });
+
   await prisma.project.delete({ where: { id: params.projectId } });
+
+  if (project) {
+    // Notify everyone who was a member, except the admin who deleted it.
+    // Link goes to /dashboard since the project URL is now 404.
+    await createNotifications({
+      userIds: project.members.map((m) => m.userId),
+      actorId: user.id,
+      type: "TASK_EDITED",
+      title: `Project deleted: ${project.name}`,
+      message: "This project and all its tasks have been removed.",
+      link: "/dashboard",
+    });
+  }
+
   return NextResponse.json({ ok: true });
 }

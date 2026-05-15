@@ -78,3 +78,36 @@
 .animate-wiggle { animation: wiggle 0.6s ease-in-out; }
 .animate-float-up { animation: float-up 1.2s ease-out forwards; }
 .animate-pulse-glow { animation: pulse-glow 1.6s ease-out infinite; }
+
+/* Bee/honeycomb loader — six hexagons waving in sequence.
+   Color is fixed amber so it reads as honey/bee in both light and dark modes. */
+.honeycomb-loader {
+  display: inline-flex;
+  gap: 4px;
+}
+.honeycomb-loader span {
+  display: block;
+  width: 22px;
+  height: 26px;
+  background: #f5a623;
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  animation: honey-wave 1.2s ease-in-out infinite;
+  opacity: 0.3;
+}
+.honeycomb-loader span:nth-child(1) { animation-delay: 0s; }
+.honeycomb-loader span:nth-child(2) { animation-delay: 0.1s; }
+.honeycomb-loader span:nth-child(3) { animation-delay: 0.2s; }
+.honeycomb-loader span:nth-child(4) { animation-delay: 0.3s; }
+.honeycomb-loader span:nth-child(5) { animation-delay: 0.4s; }
+.honeycomb-loader span:nth-child(6) { animation-delay: 0.5s; }
+
+@keyframes honey-wave {
+  0%, 100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-8px);
+  }
+}

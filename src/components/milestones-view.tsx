@@ -85,6 +85,7 @@ export function MilestonesView({
       }),
     });
     if (!res.ok) return toast.error("Failed to create milestone");
+    toast.success(`Milestone "${title}" created`);
     const created = await res.json();
     setMilestones([...milestones, { ...created, tasks: [] }]);
     setOpen(false);
