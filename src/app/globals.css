@@ -111,3 +111,8 @@
     transform: translateY(-8px);
   }
 }
+
+/* Hide scrollbar but keep scroll behavior — used for the horizontally
+   scrollable project tabs on mobile so the bar isn't visually noisy. */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

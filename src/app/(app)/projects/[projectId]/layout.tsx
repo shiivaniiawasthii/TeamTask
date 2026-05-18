@@ -31,7 +31,7 @@ export default async function ProjectLayout({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="border-b bg-card px-6 pt-4">
+      <div className="border-b bg-card px-3 sm:px-6 pt-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3">

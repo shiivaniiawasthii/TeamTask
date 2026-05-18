@@ -241,14 +241,22 @@ export async function PATCH(req: NextRequest, { params }: { params: { taskId: st
     // change so the bell reflects every meaningful task edit.
     const isStatusChange = changes.some((c) => c.startsWith("status changed"));
     const isDueDateChange = changes.some((c) => c.startsWith("due date"));
+    const isPriorityChange = changes.some((c) => c.startsWith("priority"));
     const type = isStatusChange
       ? "STATUS_CHANGE"
-      : isDueDateChange
+      : isDueDateChange || isPriorityChange
         ? "DUE_DATE_CHANGED"
         : "TASK_EDITED";
-    const currentAssignees = existing.assignees.map((a: any) => a.userId);
+    // Recipients: assignees from the join table, plus the legacy `assigneeId`
+    // (covers tasks that pre-date multi-assignee) and the task creator (they
+    // should know when "their" task changes). Deduped + actor filtered inside
+    // createNotifications.
+    const recipientIds = new Set<string>();
+    for (const a of existing.assignees) recipientIds.add((a as any).userId);
+    if (existing.assigneeId) recipientIds.add(existing.assigneeId);
+    if (existing.creatorId) recipientIds.add(existing.creatorId);
     await createNotifications({
-      userIds: currentAssignees,
+      userIds: Array.from(recipientIds),
       actorId: user.id,
       type,
       title: `Updated: "${updated.title}"`,

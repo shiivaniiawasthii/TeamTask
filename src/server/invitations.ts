@@ -12,33 +12,51 @@ import { sendInvitationAcceptedEmail } from "@/server/email/notifications";
  *
  * In practice, invitees usually skip that step — they log in with the temp
  * password and go straight to /dashboard. The result is an invitation stuck
- * at PENDING for someone who is, in every observable way, already a member.
+ * at PENDING for someone who has actually activated their account.
  *
  * This helper fixes that by marking such invites ACCEPTED whenever it's safe
  * to do so, AND fires the same admin notification + email that the explicit
  * accept handler does — so admins find out (in-app + email) regardless of
  * which path the invitee took. Called from the members page server query and
  * from the invitations GET endpoint.
+ *
+ * Acceptance signal: a ProjectMember row alone is NOT proof of acceptance —
+ * the POST handler creates it at invite time. Real proof requires BOTH:
+ *   1. `mustChangePassword === false` (they completed the forced first-login
+ *      password change), AND
+ *   2. The user was created by this invite flow — detected by
+ *      `User.createdAt` being no older than `Invitation.createdAt - window`.
+ *      Pre-existing activated users invited into a project have a User row
+ *      that predates the invitation by days/weeks; without this check they
+ *      would auto-accept the instant the invite is sent, since they already
+ *      had `mustChangePassword: false`.
+ *
+ * The combined check means pre-existing users must click the explicit
+ * `/accept-invite/<token>` link to be marked accepted — exactly what the
+ * inviter expects when they ask "did they accept?".
  */
+const STUB_USER_WINDOW_MS = 60_000;
+
 export async function reconcilePendingInvitations(projectId: string) {
   const pending = await prisma.invitation.findMany({
     where: { projectId, status: "PENDING" },
-    select: { id: true, email: true, invitedById: true },
+    select: { id: true, email: true, invitedById: true, createdAt: true },
   });
   if (pending.length === 0) return;
 
   // Lowercase + dedupe the emails we need to look up.
   const emails = Array.from(new Set(pending.map((p) => p.email.toLowerCase())));
 
-  // Find which of those emails belong to a user who's already a member of
-  // this project. We pull id + name + email so we can fire notifications
-  // without a second roundtrip per accepter.
+  // Activated members of this project, by email. We still need to apply the
+  // createdAt-relative-to-invite check below — being activated is necessary
+  // but not sufficient.
   const memberUsers = await prisma.user.findMany({
     where: {
       email: { in: emails, mode: "insensitive" },
+      mustChangePassword: false,
       memberships: { some: { projectId } },
     },
-    select: { id: true, name: true, email: true },
+    select: { id: true, name: true, email: true, createdAt: true },
   });
   if (memberUsers.length === 0) return;
 
@@ -47,9 +65,12 @@ export async function reconcilePendingInvitations(projectId: string) {
   );
   const toAccept = pending.flatMap((p) => {
     const u = memberByEmail.get(p.email.toLowerCase());
-    return u
-      ? [{ invitationId: p.id, accepter: u, invitedById: p.invitedById }]
-      : [];
+    if (!u) return [];
+    // Drop pre-existing users — their account predates this invite by more
+    // than the small clock-skew window, so activation wasn't triggered by it.
+    const inviteTime = p.createdAt.getTime();
+    if (u.createdAt.getTime() < inviteTime - STUB_USER_WINDOW_MS) return [];
+    return [{ invitationId: p.id, accepter: u, invitedById: p.invitedById }];
   });
   if (toAccept.length === 0) return;
 

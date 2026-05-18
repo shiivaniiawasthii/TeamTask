@@ -52,7 +52,7 @@ export default async function DashboardPage() {
         <div>
           <h1 className="text-2xl font-semibold flex items-center gap-2">
             Dashboard
-            <Bee size={28} />
+            <Bee size={28} animated={false} />
           </h1>
           <p className="text-sm text-muted-foreground">
             Welcome back{user.name ? `, ${user.name.split(" ")[0]}` : ""} — your
@@ -76,7 +76,7 @@ export default async function DashboardPage() {
           <h2 className="font-semibold mb-3">My open tasks</h2>
           {myTasks.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-8 text-center">
-              <Bee size={56} floating />
+              <Bee size={56} animated={false} />
               <p className="text-sm text-muted-foreground">
                 Nothing on your plate. Nice.
               </p>
@@ -122,7 +122,7 @@ export default async function DashboardPage() {
           <h2 className="font-semibold mb-3">Projects</h2>
           {projects.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-8 text-center">
-              <Bee size={48} floating />
+              <Bee size={48} animated={false} />
               <p className="text-sm text-muted-foreground">
                 No projects yet. Create one from the sidebar to start the hive.
               </p>

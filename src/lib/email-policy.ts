@@ -1,29 +1,35 @@
 import crypto from "crypto";
 
 /**
- * Workspace-wide email policy.
+ * Workspace-wide email domain restriction for registration/invites.
  *
- * Reads ALLOWED_EMAIL_DOMAIN from env (defaults to "cognifai.in"). All
- * registration + invite flows go through `isAllowedEmail` so the rule can be
- * changed in one place.
+ * Reads ALLOWED_EMAIL_DOMAINS from env (comma-separated). If set, only users
+ * with email addresses in those domains can register or be invited.
+ * If not set, registration is open to any domain.
  *
- * Set ALLOWED_EMAIL_DOMAIN="" to disable the lockdown entirely (e.g. for dev).
+ * Example: ALLOWED_EMAIL_DOMAINS="cognifai.in,company.com"
  */
-export const ALLOWED_DOMAIN =
-  process.env.ALLOWED_EMAIL_DOMAIN === ""
-    ? null
-    : (process.env.ALLOWED_EMAIL_DOMAIN ?? "cognifai.in");
+function getAllowedDomains(): string[] | null {
+  const envVal = process.env.ALLOWED_EMAIL_DOMAINS?.trim();
+  if (!envVal) return null;
+  return envVal.split(",").map((d) => d.trim().toLowerCase()).filter(Boolean);
+}
+
+const ALLOWED_DOMAINS = getAllowedDomains();
 
 export function isAllowedEmail(email: string): boolean {
-  if (!ALLOWED_DOMAIN) return true;
+  if (!ALLOWED_DOMAINS) return true;
   const lowered = email.toLowerCase().trim();
-  return lowered.endsWith(`@${ALLOWED_DOMAIN}`);
+  const domain = lowered.split("@")[1];
+  return domain ? ALLOWED_DOMAINS.includes(domain) : false;
 }
 
 export function emailDomainError(): string {
-  return ALLOWED_DOMAIN
-    ? `Only @${ALLOWED_DOMAIN} email addresses are allowed.`
-    : "Invalid email address.";
+  if (!ALLOWED_DOMAINS) return "Invalid email address.";
+  if (ALLOWED_DOMAINS.length === 1) {
+    return `Only @${ALLOWED_DOMAINS[0]} email addresses are allowed.`;
+  }
+  return `Only emails from: ${ALLOWED_DOMAINS.join(", ")} are allowed.`;
 }
 
 /**

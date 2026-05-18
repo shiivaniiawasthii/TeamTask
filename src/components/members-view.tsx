@@ -131,8 +131,8 @@ export function MembersView({
   projectName,
   currentUserId,
   isAdmin,
-  members,
-  invitations,
+  members: initialMembers,
+  invitations: initialInvitations,
 }: {
   projectId: string;
   projectName: string;
@@ -142,6 +142,8 @@ export function MembersView({
   invitations: Invitation[];
 }) {
   const router = useRouter();
+  const [members, setMembers] = useState(initialMembers);
+  const [invitations, setInvitations] = useState(initialInvitations);
 
   // ─── Poll the members page so accepted invites disappear / new joiners
   // appear without the admin having to manually reload. router.refresh()
@@ -205,6 +207,20 @@ export function MembersView({
     };
     const invited = results.filter((r) => r.status === "invited").length;
     const skipped = results.length - invited;
+
+    setInvitations((prev) => [
+      ...prev,
+      ...results
+        .filter((r) => r.status === "invited")
+        .map((r) => ({
+          id: `temp-${Date.now()}-${Math.random()}`,
+          email: r.email,
+          role,
+          expiresAt: new Date(Date.now() + (days ?? 365) * 24 * 60 * 60 * 1000).toISOString(),
+          invitedBy: "You",
+        })),
+    ]);
+
     toast.success(
       `Sent ${invited} invitation${invited === 1 ? "" : "s"}` +
         (skipped > 0 ? ` (${skipped} skipped — already member or invited)` : ""),
@@ -218,6 +234,9 @@ export function MembersView({
   }
 
   async function changeRole(userId: string, newRole: Role) {
+    setMembers((prev) =>
+      prev.map((m) => (m.userId === userId ? { ...m, role: newRole } : m)),
+    );
     const res = await fetch(`/api/projects/${projectId}/members/${userId}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
@@ -226,6 +245,7 @@ export function MembersView({
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
       toast.error(j.error ?? "Failed to update role");
+      setMembers(initialMembers);
       return;
     }
     router.refresh();
@@ -237,6 +257,13 @@ export function MembersView({
     if (extendDuration === "custom" && (!days || days < 30)) {
       return toast.error("Custom expiry must be at least 30 days from today");
     }
+    setMembers((prev) =>
+      prev.map((m) =>
+        m.userId === extendingUserId
+          ? { ...m, expiresAt: expiresAtIso }
+          : m,
+      ),
+    );
     const res = await fetch(
       `/api/projects/${projectId}/members/${extendingUserId}`,
       {
@@ -248,6 +275,7 @@ export function MembersView({
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
       toast.error(j.error ?? "Failed to update access");
+      setMembers(initialMembers);
       return;
     }
     toast.success("Access updated");
@@ -259,12 +287,14 @@ export function MembersView({
 
   async function removeMember(userId: string, name: string | null, email: string) {
     if (!confirm(`Remove ${name ?? email} from this project?`)) return;
+    setMembers((prev) => prev.filter((m) => m.userId !== userId));
     const res = await fetch(`/api/projects/${projectId}/members/${userId}`, {
       method: "DELETE",
     });
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
       toast.error(j.error ?? "Failed to remove");
+      setMembers((prev) => [...prev, { userId, name, email, image: null, role: "MEMBER", joinedAt: new Date().toISOString(), expiresAt: null }]);
       return;
     }
     router.refresh();
@@ -272,10 +302,16 @@ export function MembersView({
 
   async function cancelInvite(id: string) {
     if (!confirm("Cancel this invitation?")) return;
+    setInvitations((prev) => prev.filter((i) => i.id !== id));
     const res = await fetch(`/api/projects/${projectId}/invitations/${id}`, {
       method: "DELETE",
     });
-    if (!res.ok) return toast.error("Failed");
+    if (!res.ok) {
+      const original = initialInvitations.find((i) => i.id === id);
+      if (original) setInvitations((prev) => [...prev, original]);
+      toast.error("Failed");
+      return;
+    }
     toast.success("Invitation cancelled");
     router.refresh();
   }
@@ -305,8 +341,8 @@ export function MembersView({
         )}
       </div>
 
-      <section className="rounded-md border bg-card overflow-hidden">
-        <table className="w-full text-sm">
+      <section className="rounded-md border bg-card overflow-x-auto">
+        <table className="w-full min-w-[640px] text-sm">
           <thead className="bg-muted/40 border-b text-left text-xs uppercase tracking-wider text-muted-foreground">
             <tr>
               <th className="px-4 py-2 font-normal">Name</th>
@@ -414,8 +450,8 @@ export function MembersView({
           <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
             <Mail className="h-4 w-4" /> Pending invitations
           </h3>
-          <div className="rounded-md border bg-card overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="rounded-md border bg-card overflow-x-auto">
+            <table className="w-full min-w-[640px] text-sm">
               <thead className="bg-muted/40 border-b text-left text-xs uppercase tracking-wider text-muted-foreground">
                 <tr>
                   <th className="px-4 py-2 font-normal">Email</th>

@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { initials } from "@/lib/utils";
-import { LogOut, Shield } from "lucide-react";
+import { LogOut, Shield, Menu } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/notification-bell";
+import { useMobileNav } from "@/lib/use-mobile-nav";
 
 // Maps the stored role string to a human label + chip style. The same role
 // vocabulary appears on Members; keeping the styles aligned makes the navbar
@@ -35,10 +36,20 @@ export function TopBar({
   const roleLabel = ROLE_LABEL[role] ?? role;
   const roleStyle = ROLE_STYLE[role] ?? ROLE_STYLE.MEMBER;
 
+  const toggleMobileNav = useMobileNav((s) => s.toggle);
+
   return (
-    <header className="flex h-14 items-center justify-between border-b bg-card px-6">
-      <div className="text-sm text-muted-foreground" />
-      <div className="flex items-center gap-3">
+    <header className="flex h-14 items-center justify-between border-b bg-card px-3 sm:px-6">
+      <button
+        type="button"
+        onClick={toggleMobileNav}
+        className="md:hidden p-2 -ml-2 rounded hover:bg-accent/30"
+        aria-label="Open menu"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+      <div className="hidden md:block text-sm text-muted-foreground" />
+      <div className="flex items-center gap-2 sm:gap-3">
         <NotificationBell />
         <ThemeToggle />
         <Avatar>

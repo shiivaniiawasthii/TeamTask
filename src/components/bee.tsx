@@ -113,21 +113,18 @@ export function BeeCluster({ className }: { className?: string }) {
     >
       <Bee
         size={48}
-        floating
+        animated={false}
         className="absolute top-2 right-4"
       />
       <Bee
         size={32}
-        floating
+        animated={false}
         className="absolute top-12 right-20"
-        // Stagger the drift so they look uncoordinated.
-        style={{ animationDelay: "1.5s" }}
       />
       <Bee
         size={24}
-        floating
+        animated={false}
         className="absolute top-6 right-32 opacity-70"
-        style={{ animationDelay: "3s" }}
       />
     </div>
   );

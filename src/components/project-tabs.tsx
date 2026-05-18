@@ -16,7 +16,7 @@ export function ProjectTabs({ projectId }: { projectId: string }) {
     { href: `/projects/${projectId}/members`, label: "Members" },
   ];
   return (
-    <nav className="mt-4 flex gap-1 -mb-px">
+    <nav className="mt-4 flex gap-1 -mb-px overflow-x-auto no-scrollbar">
       {tabs.map((t) => {
         const active = pathname?.startsWith(t.href);
         return (
@@ -24,7 +24,7 @@ export function ProjectTabs({ projectId }: { projectId: string }) {
             key={t.href}
             href={t.href}
             className={cn(
-              "px-3 py-2 text-sm border-b-2 -mb-px",
+              "shrink-0 px-3 py-2 text-sm border-b-2 -mb-px whitespace-nowrap",
               active
                 ? "border-primary text-primary font-medium"
                 : "border-transparent text-muted-foreground hover:text-foreground",
